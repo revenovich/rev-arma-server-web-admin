@@ -1,28 +1,28 @@
-/* Design tokens — see PLAN.md "Design Tokens" section */
+/* Design tokens — deep navy dark theme matching the admin panel aesthetic */
 
 /* Dark (default) */
 :root {
-  --color-bg: oklch(14% 0.01 265);
-  --color-surface: oklch(18% 0.01 265);
-  --color-surface-raised: oklch(22% 0.01 265);
-  --color-text: oklch(96% 0 0);
-  --color-text-muted: oklch(68% 0.01 265);
-  --color-border: oklch(28% 0.01 265);
+  --color-bg: oklch(14% 0.08 265);
+  --color-surface: oklch(18% 0.08 265);
+  --color-surface-raised: oklch(22% 0.07 265);
+  --color-text: oklch(95% 0.01 265);
+  --color-text-muted: oklch(62% 0.04 265);
+  --color-border: oklch(28% 0.06 265);
 
-  /* Accent — cool blue, used only for CTAs and focus rings */
-  --color-accent: oklch(68% 0.18 255);
+  /* Accent — vivid blue for CTAs and active states */
+  --color-accent: oklch(62% 0.20 255);
 
   /* Semantic */
-  --color-success: oklch(72% 0.17 155);
-  --color-warning: oklch(78% 0.16 75);
-  --color-danger: oklch(62% 0.22 25);
+  --color-success: oklch(68% 0.18 155);
+  --color-warning: oklch(76% 0.16 75);
+  --color-danger: oklch(58% 0.24 25);
 
   /* Typography */
   --font-sans: "Inter Variable", system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", monospace;
 
-  /* Type scale — admin baseline is 14px, not 16px */
-  --text-xs: 12px;
+  /* Type scale — admin baseline is 14px */
+  --text-xs: 11px;
   --text-sm: 13px;
   --text-base: 14px;
   --text-lg: 16px;
@@ -30,19 +30,19 @@
   --text-2xl: 24px;
   --text-3xl: 32px;
 
-  /* Spacing */
-  --sidebar-width: 240px;
-  --topbar-height: 56px;
-  --content-max-width: 1440px;
-  --content-padding: 32px;
+  /* Layout */
+  --sidebar-width: 220px;
+  --topbar-height: 52px;
+  --content-max-width: 1200px;
+  --content-padding: 28px;
 }
 
 /* Light */
 .light {
-  --color-bg: oklch(99% 0 0);
-  --color-surface: oklch(97% 0 0);
-  --color-surface-raised: oklch(100% 0 0);
-  --color-text: oklch(18% 0 0);
-  --color-text-muted: oklch(45% 0 0);
-  --color-border: oklch(90% 0 0);
+  --color-bg: oklch(97% 0.005 265);
+  --color-surface: oklch(100% 0 0);
+  --color-surface-raised: oklch(96% 0.005 265);
+  --color-text: oklch(15% 0.02 265);
+  --color-text-muted: oklch(48% 0.02 265);
+  --color-border: oklch(88% 0.01 265);
 }

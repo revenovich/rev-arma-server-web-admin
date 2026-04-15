@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { Settings as SettingsIcon } from "lucide-react";
-import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 
@@ -21,30 +20,33 @@ export function SettingsScreen() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+    <div className="space-y-5">
+      <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
 
       {isLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
           {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 rounded-lg" />
+            <Skeleton key={i} className="h-12 rounded-lg" />
           ))}
         </div>
       ) : settings ? (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
           {Object.entries(settings).map(([key, value]) => (
-            <Card key={key} className="flex items-center justify-between p-4">
-              <span className="text-sm font-medium">{key}</span>
-              <span className="font-mono text-sm text-muted-foreground">
+            <div
+              key={key}
+              className="flex items-center justify-between rounded-lg bg-surface px-4 py-3 hover:bg-surface-raised transition-colors"
+            >
+              <span className="text-sm font-medium text-text">{key}</span>
+              <span className="font-mono text-xs text-muted-foreground">
                 {value === null ? "—" : String(value)}
               </span>
-            </Card>
+            </div>
           ))}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-raised">
-            <SettingsIcon className="h-6 w-6 text-muted-foreground" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface">
+            <SettingsIcon className="h-5 w-5 text-muted-foreground" />
           </div>
           <p className="text-sm text-muted-foreground">No settings available.</p>
         </div>

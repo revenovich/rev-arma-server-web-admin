@@ -94,8 +94,9 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             try:
                 msg: dict[str, Any] = await asyncio.wait_for(q.get(), timeout=30.0)
                 await websocket.send_json(msg)
-            except TimeoutError:
+            except (TimeoutError, asyncio.TimeoutError):
                 # Keepalive ping — prevents proxy / load-balancer idle timeouts
+                # Note: asyncio.TimeoutError != builtin TimeoutError in Python 3.9
                 await websocket.send_json({"type": "ping"})
     except WebSocketDisconnect:
         pass

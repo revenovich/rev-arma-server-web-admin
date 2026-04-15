@@ -38,8 +38,11 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-screen w-sidebar flex-col border-r border-border bg-sidebar">
-      <div className="flex h-topbar items-center px-4 font-semibold tracking-tight">
-        Arma Admin
+      <div className="flex h-topbar items-center gap-2.5 border-b border-sidebar-border px-4">
+        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-accent/20">
+          <Server className="h-4 w-4 text-accent" />
+        </div>
+        <span className="text-sm font-semibold tracking-tight text-sidebar-foreground">Arma Admin</span>
       </div>
 
       <nav aria-label="Primary" className="space-y-1 px-2 py-2">
