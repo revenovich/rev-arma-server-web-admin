@@ -7,6 +7,6 @@ const MODS_KEY = ["mods"] as const;
 export function useMods() {
   return useQuery<Mod[]>({
     queryKey: MODS_KEY,
-    queryFn: () => api.get<Mod[]>("/mods"),
+    queryFn: () => api.get<Mod[]>("/mods/"),
   });
 }

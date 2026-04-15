@@ -8,7 +8,7 @@ const MISSIONS_KEY = ["missions"] as const;
 export function useMissions() {
   return useQuery<Mission[]>({
     queryKey: MISSIONS_KEY,
-    queryFn: () => api.get<Mission[]>("/missions"),
+    queryFn: () => api.get<Mission[]>("/missions/"),
   });
 }
 

@@ -12,7 +12,7 @@ const LOGS_KEY = ["logs"] as const;
 export function LogsScreen() {
   const { data: logs, isLoading, error } = useQuery<LogEntry[]>({
     queryKey: LOGS_KEY,
-    queryFn: () => api.get<LogEntry[]>("/logs"),
+    queryFn: () => api.get<LogEntry[]>("/logs/"),
   });
 
   if (error) {

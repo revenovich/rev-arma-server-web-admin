@@ -9,7 +9,7 @@ const SETTINGS_KEY = ["settings"] as const;
 export function SettingsScreen() {
   const { data: settings, isLoading, error } = useQuery<Record<string, unknown>>({
     queryKey: SETTINGS_KEY,
-    queryFn: () => api.get<Record<string, unknown>>("/settings"),
+    queryFn: () => api.get<Record<string, unknown>>("/settings/"),
   });
 
   if (error) {

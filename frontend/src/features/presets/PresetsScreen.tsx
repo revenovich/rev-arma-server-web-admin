@@ -13,7 +13,7 @@ const PRESETS_KEY = ["presets"] as const;
 export function PresetsScreen() {
   const { data: presets, isLoading, error } = useQuery<Preset[]>({
     queryKey: PRESETS_KEY,
-    queryFn: () => api.get<Preset[]>("/presets"),
+    queryFn: () => api.get<Preset[]>("/presets/"),
   });
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
