@@ -1,7 +1,7 @@
 # Python Rewrite Plan — arma-server-web-admin
 
 **Branch**: `python-rewrite` (from `master`)
-**Status**: ALL PHASES COMPLETE ✅ — 288 backend tests (80.03% coverage), 94 frontend Vitest tests, Playwright E2E, CI green.
+**Status**: ALL PHASES COMPLETE ✅ — 288 backend tests (80.03% coverage), 126 frontend Vitest tests, Playwright E2E, CI green.
 **Last updated**: 2026-04-15
 
 ## Completion Summary
@@ -13,6 +13,7 @@
 | Phase 3 — All Screens (REST) | ✅ COMPLETE | 67 Vitest tests |
 | Phase 4 — WebSocket + Polish | ✅ COMPLETE | 83 Vitest tests |
 | Phase 5 — Integration, Tests, CI | ✅ COMPLETE | 94 Vitest + Playwright E2E + CI |
+| UX Overhaul — Server controls + tab fixes | ✅ COMPLETE | 126 Vitest (TDD, 5 bugs fixed) |
 
 **Coverage**: 80.03% backend (`fail_under = 80` in `pyproject.toml`)
 **CI**: `.github/workflows/ci.yml` — ruff + mypy + pytest-cov (backend); eslint + tsc + vitest + vite build (frontend)
@@ -28,6 +29,10 @@
 | `structlog.stdlib.add_logger_name` crashes | `app/core/logging.py` | Requires `stdlib.LoggerFactory`; removed from processor chain |
 | Module-level auth state pollutes tests | `app/api/__init__.py` | `_fail_counts`/`_fail_times` must be cleared between test cases |
 | `Preset` schema field mismatch in test helpers | test files | Schema has `source_file`, `mod_count`; no `groups` field |
+| Switch thumb invisible in dark-default theme | `frontend/src/components/ui/switch.tsx` | `dark:` variants need `.dark` class; theme uses `:root` defaults. Fixed: `data-checked:bg-primary-foreground data-unchecked:bg-foreground` |
+| `availableMods` always empty | `frontend/src/features/servers/tabs/ModsTab.tsx` | `useState<string[]>([])` never populated from `useMods()`. Fixed: derive from `allMods.filter(m => !activeSet.has(m.name))` |
+| Missions losing difficulty on round-trip | `frontend/src/features/servers/tabs/MissionsTab.tsx` | Frontend treated missions as plain strings; backend stores `{template, difficulty}`. Fixed: `parseMissions()` handles both formats |
+| Entire ServerCard was a `<Link>` | `frontend/src/components/servers/ServerCard.tsx` | Full-card link blocked action buttons. Fixed: outer `<div>`, title is `<Link>`, bottom row has buttons |
 
 ---
 

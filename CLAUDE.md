@@ -5,14 +5,14 @@ This file provides guidance to Claude Code when working with code in this reposi
 ## Branch context
 
 **Active branch**: `master` — Node.js/Express + Backbone.js fully replaced by FastAPI + React 18/Vite/TypeScript.
-**Phase status**: ALL 5 PHASES COMPLETE ✅ (288 backend tests passing, 3 skipped; 94 frontend Vitest tests; 75 E2E Playwright tests; 80.03% backend coverage).
+**Phase status**: ALL 5 PHASES COMPLETE ✅ (288 backend tests passing, 3 skipped; 126 frontend Vitest tests; 75 E2E Playwright tests; 80.03% backend coverage).
 See `PLAN.md` for the full step checklist and all architectural decisions.
 
 ## Current state (as of 2026-04-15)
 
 - Backend: FastAPI on port 9500, all routes implemented and tested.
 - Frontend: React 18 + Vite on port 9510 (dev), served from `frontend/dist/` (prod).
-- Tests: 288 backend tests pass (`python -m pytest tests/ -q`), 3 skipped (Linux symlink tests on Windows).
+- Tests: 288 backend tests pass (`python -m pytest tests/ -q`), 3 skipped (Linux symlink tests on Windows); 126 frontend Vitest tests pass.
 - Coverage: 80.03% (`fail_under = 80` enforced via `pyproject.toml`).
 - Auth: Custom login screen with dedicated `GET /api/auth` probe endpoint (no credentials needed).
 - Theme: Dark mode is the **CSS default** — no class or JS required. Light mode only when `.light` is on `<html>`.
@@ -43,6 +43,10 @@ See `PLAN.md` for the full step checklist and all architectural decisions.
 | Frontend type fields not matching backend schema | `frontend/src/types/api.ts` | `Mission.filename` → `Mission.name`/`missionName`/`worldName`; `LogEntry.filename` → `LogEntry.name`; `LogEntry.lastModified` → `LogEntry.modified`; `Mod.steamId` removed, `Mod.formattedSize` added. |
 | `index.html` cached by browser after rebuild | `app/main.py` | `spa_fallback` served `index.html` with no cache headers. Browser kept serving old asset hashes. Fixed: added `Cache-Control: no-store`. |
 | `Preset` schema missing `source_file`/`mod_count` | test helpers | `_preset()` helper must pass `source_file` and `mod_count`; `groups` field does not exist. |
+| Switch thumb invisible in dark-default theme | `frontend/src/components/ui/switch.tsx` | `dark:` Tailwind variants require a `.dark` class on `<html>`. Our theme uses `:root` defaults without any class. `bg-background` (dark surface) on thumb was invisible against dark track. Fixed: removed `dark:` prefixes; use `data-checked:bg-primary-foreground data-unchecked:bg-foreground` directly. |
+| `availableMods` always empty in ModsTab | `frontend/src/features/servers/tabs/ModsTab.tsx` | State was `useState<string[]>([])` — never populated from `useMods()` hook. Fixed: derive `availableMods` by filtering `allMods` against the `activeSet`. |
+| Missions stored as strings losing difficulty | `frontend/src/features/servers/tabs/MissionsTab.tsx` | Backend `server_config.py` stores missions as `{template, difficulty}` objects but old frontend code treated them as plain strings. Fixed: `parseMissions()` handles both string entries and `{template, difficulty}` objects for backward compatibility. |
+| Entire ServerCard was a `<Link>` | `frontend/src/components/servers/ServerCard.tsx` | Wrapping the full card in `<Link>` made it impossible to place action buttons without triggering navigation. Fixed: outer `<div>`, title area is `<Link>`, bottom row contains action buttons. |
 
 ---
 
