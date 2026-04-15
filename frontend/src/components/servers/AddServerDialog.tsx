@@ -39,11 +39,9 @@ export function AddServerDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          Add Server
-        </Button>
+      <DialogTrigger render={<Button size="sm" />}>
+        <Plus className="mr-1.5 h-3.5 w-3.5" />
+        Add Server
       </DialogTrigger>
 
       <DialogContent>
@@ -96,10 +94,8 @@ export function AddServerDialog() {
           </div>
 
           <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline">
-                Cancel
-              </Button>
+            <DialogClose render={<Button type="button" variant="outline" />}>
+              Cancel
             </DialogClose>
             <Button type="submit" disabled={!title.trim() || isPending}>
               {isPending ? "Creating…" : "Create"}

@@ -178,16 +178,18 @@ export function ServerDetailScreen() {
 
             {/* Delete */}
             <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label="Delete server"
-                  className="gap-1.5 text-muted-foreground hover:bg-danger/10 hover:text-danger"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </Button>
+              <AlertDialogTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Delete server"
+                    className="gap-1.5 text-muted-foreground hover:bg-danger/10 hover:text-danger"
+                  />
+                }
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
               </AlertDialogTrigger>
               <AlertDialogContent size="sm">
                 <AlertDialogHeader>
