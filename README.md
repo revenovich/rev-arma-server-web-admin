@@ -158,6 +158,145 @@ cp config.json.example config.json
 
 > **Important**: The app starts without `config.json` but `path` will be empty — mods, missions, and log scanning won't work.
 
+---
+
+## Migrating from the Node.js Version
+
+If you are currently running the original Node.js/Express version of this app and want to switch to the Python rewrite on **Windows Server 2016** (or any platform), follow these steps. Your existing Arma servers and mods are safe — the new app reads the same `servers.json` and the same mod folders.
+
+### Step 1: Stop the old app
+
+```bash
+# If running via npm/Node:
+npm stop
+# Or kill the Node.js process
+taskkill /F /IM node.exe /FI "WINDOWTITLE eq arma-server-web-admin"
+```
+
+### Step 2: Back up your data
+
+```powershell
+# Back up the existing config and server list
+copy config.json config.json.bak
+copy servers.json servers.json.bak
+```
+
+### Step 3: Install Python 3.9+ and the new app
+
+```powershell
+# Install Python 3.9+ from python.org if not already installed
+# Then:
+cd D:\path\to\rev-arma-server-web-admin
+pip install -e .
+```
+
+### Step 4: Migrate your existing config.json
+
+The new app's `config.json` is **almost identical** to the old Node.js `config.js`. The only changes:
+
+1. Rename `config.js` → `config.json` (or copy from `config.json.example`)
+2. Set `"type": "windows"` (the old app used `"type": "windows"` too)
+3. Set `"path"` to your Arma server directory (same path as before)
+
+Example `config.json` for Windows:
+
+```json
+{
+  "game": "arma3_x64",
+  "path": "D:\\Arma3Server",
+  "port": 9500,
+  "host": "0.0.0.0",
+  "type": "windows",
+  "additionalConfigurationOptions": "",
+  "parameters": ["-noSound", "-world=empty"],
+  "serverMods": [],
+  "admins": [],
+  "auth": {
+    "username": "",
+    "password": ""
+  },
+  "prefix": "",
+  "suffix": "",
+  "logFormat": "dev",
+  "caddy": {
+    "base_url": "",
+    "username": "",
+    "password": ""
+  }
+}
+```
+
+> **Key differences from old config.js**: The `port` field is now the **web UI port** (default 9500), not the game server port. Game server ports are configured per-server inside the UI (default 2302). The old `port` field served the same purpose (Express listen port), so just update the number.
+
+### Step 5: Validate your servers.json
+
+Your existing `servers.json` file works as-is. The new app's Pydantic schema preserves all field names (including mixed camelCase/snake_case like `forcedDifficulty`, `additionalConfigurationOptions`, `battle_eye`) and allows extra fields, so no data loss.
+
+Run the migration validator to confirm:
+
+```bash
+python scripts/migrate_servers_json.py servers.json
+```
+
+If any issues are found, fix them with:
+
+```bash
+python scripts/migrate_servers_json.py servers.json --migrate -o servers.json.new
+```
+
+Then replace `servers.json` with the validated version.
+
+### Step 6: Build the frontend and start
+
+```bash
+cd frontend
+npm install
+npm run build
+cd ..
+
+uvicorn app.main:app --host 0.0.0.0 --port 9500
+```
+
+The web UI is available at `http://your-server:9500`.
+
+### Step 7: Verify existing mods
+
+Your mods are still in the same directory structure. The new app scans mod folders using the same `@*` and Creator DLC glob pattern. Open the web UI and check:
+
+- **Servers** → your existing servers should appear with their configurations intact
+- **Mods** → all mod folders should be listed
+- **Missions** → all `.pbo` files in `mpmissions/` should appear
+
+> **Important for Windows**: The new app uses **NTFS junctions** (same as the old app) for mod linking. Never use `shutil.rmtree()` on a junction — it deletes the actual mod files. The app handles this correctly internally.
+
+### Step 8: Set up Caddy for mod downloads (optional)
+
+If you use the preset/mod download pipeline (arma-modlist-tools replacement), configure the Caddy integration in `config.json`:
+
+```json
+"caddy": {
+  "base_url": "https://your-caddy-server.example.com",
+  "username": "caddy_user",
+  "password": "caddy_password"
+}
+```
+
+This enables: preset import from `.html` files, missing mod reports, and mod download/sync.
+
+### Step 9: Set up as a Windows Service (optional)
+
+To run the app automatically on startup, use **nssm** (Non-Sucking Service Manager):
+
+```powershell
+# Download nssm from https://nssm.cc/download
+nssm install ArmaAdmin "C:\Python39\python.exe" "-m uvicorn app.main:app --host 0.0.0.0 --port 9500"
+nssm set ArmaAdmin AppDirectory "D:\path\to\rev-arma-server-web-admin"
+nssm set ArmaAdmin DisplayName "Arma Server Web Admin"
+nssm start ArmaAdmin
+```
+
+> **CRITICAL on Windows**: Disable Windows Error Reporting before running Arma servers through this (or any) web admin. See the [Windows: Disable Windows Error Reporting](#windows-disable-windows-error-reporting) section below.
+
 ### Environment variable overrides
 
 Every config key can be overridden via environment variables with the `ARMA_` prefix:
