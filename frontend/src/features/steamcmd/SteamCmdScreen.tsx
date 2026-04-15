@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import type { SteamCmdVersion } from "@/types/api";
 
@@ -48,11 +49,11 @@ export function SteamCmdScreen() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">SteamCMD</h1>
+      <h1 className="text-2xl font-bold tracking-tight gradient-heading">SteamCMD</h1>
 
       {/* Version / Status */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Installation Status</h3>
+        <p className="section-label">Installation Status</p>
         {isLoading ? (
           <Skeleton className="h-8 w-48" />
         ) : version ? (
@@ -71,7 +72,7 @@ export function SteamCmdScreen() {
 
       {/* Actions */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Actions</h3>
+        <p className="section-label">Actions</p>
         <div className="flex flex-wrap gap-3">
           <Button
             onClick={() => install.mutate()}
@@ -85,7 +86,7 @@ export function SteamCmdScreen() {
             onClick={() => update.mutate()}
             disabled={update.isPending}
           >
-            <RefreshCw className="mr-1.5 h-4 w-4" />
+            <RefreshCw className={cn("mr-1.5 h-4 w-4", update.isPending && "animate-spin")} />
             {update.isPending ? "Updating..." : "Update"}
           </Button>
         </div>
@@ -93,14 +94,14 @@ export function SteamCmdScreen() {
 
       {/* Branch selector */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Branch</h3>
+        <p className="section-label">Branch</p>
         <div className="flex items-center gap-3">
           <select
             id="branch-select"
             value={branch}
             onChange={(e) => setBranch(e.target.value)}
             aria-label="Game branch"
-            className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm"
+            className="glass-input h-8 px-2.5 text-sm"
           >
             <option value="public">Stable (public)</option>
             <option value="development">Development</option>

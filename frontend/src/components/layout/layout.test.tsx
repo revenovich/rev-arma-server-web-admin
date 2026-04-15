@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -19,27 +19,30 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
+function ShellWrapper() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <Routes>
+          <Route element={<AppShell />}>
+            <Route path="/" element={<p>Test content area</p>} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </QueryClientProvider>
+  );
+}
+
 describe("AppShell", () => {
   it("renders sidebar and topbar", () => {
-    render(
-      <AppShell>
-        <div data-testid="content">Content</div>
-      </AppShell>,
-      { wrapper: Wrapper },
-    );
+    render(<ShellWrapper />);
 
     expect(screen.getByRole("navigation", { name: "Primary" })).toBeInTheDocument();
     expect(screen.getByRole("banner")).toBeInTheDocument();
-    expect(screen.getByTestId("content")).toBeInTheDocument();
   });
 
-  it("renders children in the content area", () => {
-    render(
-      <AppShell>
-        <p>Test content area</p>
-      </AppShell>,
-      { wrapper: Wrapper },
-    );
+  it("renders route content in the content area", () => {
+    render(<ShellWrapper />);
 
     expect(screen.getByText("Test content area")).toBeInTheDocument();
   });

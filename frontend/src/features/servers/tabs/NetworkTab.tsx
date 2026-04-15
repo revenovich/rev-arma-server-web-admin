@@ -107,7 +107,7 @@ export function NetworkTab() {
     <div className="space-y-6">
       {/* Bandwidth Presets */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Bandwidth Preset</h3>
+        <h3 className="section-label">Bandwidth Preset</h3>
         <div className="flex flex-wrap gap-2">
           {Object.keys(BANDWIDTH_PRESETS).map((preset) => (
             <Button key={preset} variant="secondary" size="sm" onClick={() => applyPreset(preset)}>
@@ -119,7 +119,7 @@ export function NetworkTab() {
 
       {/* Basic.cfg fields */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Connection Settings</h3>
+        <h3 className="section-label">Connection Settings</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           {numberFields.map(({ key, label }) => (
             <div key={key} className="space-y-1.5">
@@ -132,7 +132,7 @@ export function NetworkTab() {
 
       {/* Network quality / kick thresholds */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Network Quality & Kick Thresholds</h3>
+        <h3 className="section-label">Network Quality & Kick Thresholds</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           {networkQualityFields.map(({ key, label }) => (
             <div key={key} className="space-y-1.5">

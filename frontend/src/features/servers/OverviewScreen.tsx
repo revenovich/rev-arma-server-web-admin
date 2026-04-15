@@ -24,7 +24,7 @@ export function OverviewScreen() {
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-36 rounded-lg" />
+            <Skeleton key={i} className="h-36 rounded-2xl" />
           ))}
         </div>
       </div>
@@ -36,7 +36,9 @@ export function OverviewScreen() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Servers</h1>
+        <h1 className="text-2xl font-bold tracking-tight gradient-heading">
+          Servers
+        </h1>
         <Button size="sm">Add Server</Button>
       </div>
 
@@ -48,7 +50,7 @@ export function OverviewScreen() {
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-raised">
+          <div className="glass flex h-12 w-12 items-center justify-center rounded-full">
             <Server className="h-6 w-6 text-muted-foreground" />
           </div>
           <div className="space-y-1">

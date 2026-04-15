@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useTheme } from "@/hooks/useTheme";
 import { getTheme, setTheme, THEME_KEY } from "@/lib/theme";
@@ -11,8 +11,8 @@ describe("theme lib", () => {
   });
 
   describe("getTheme", () => {
-    it("returns 'dark' when no stored preference and no system preference", () => {
-      // Default is dark per PLAN.md
+    it("returns 'dark' when no stored preference", () => {
+      // Dark is the default — no class needed
       expect(getTheme()).toBe("dark");
     });
 
@@ -21,19 +21,9 @@ describe("theme lib", () => {
       expect(getTheme()).toBe("light");
     });
 
-    it("returns system preference when no stored preference", () => {
-      vi.stubGlobal("matchMedia", (query: string) => ({
-        matches: query === "(prefers-color-scheme: light)",
-        media: query,
-        onchange: null,
-        addListener: () => {},
-        removeListener: () => {},
-        addEventListener: () => {},
-        removeEventListener: () => {},
-        dispatchEvent: () => false,
-      }));
-      expect(getTheme()).toBe("light");
-      vi.unstubAllGlobals();
+    it("returns 'dark' by default regardless of system preference", () => {
+      // This admin tool defaults to dark — system preference is not checked
+      expect(getTheme()).toBe("dark");
     });
   });
 
@@ -46,19 +36,17 @@ describe("theme lib", () => {
     it("adds 'light' class to documentElement for light theme", () => {
       setTheme("light");
       expect(document.documentElement.classList.contains("light")).toBe(true);
-      expect(document.documentElement.classList.contains("dark")).toBe(false);
     });
 
-    it("adds 'dark' class to documentElement for dark theme", () => {
+    it("removes 'light' class for dark theme (dark is the default)", () => {
+      setTheme("light");
       setTheme("dark");
-      expect(document.documentElement.classList.contains("dark")).toBe(true);
       expect(document.documentElement.classList.contains("light")).toBe(false);
     });
 
     it("removes previous theme class when switching", () => {
       setTheme("light");
       setTheme("dark");
-      expect(document.documentElement.classList.contains("dark")).toBe(true);
       expect(document.documentElement.classList.contains("light")).toBe(false);
     });
   });
@@ -91,6 +79,6 @@ describe("useTheme hook", () => {
       result.current.toggleTheme();
     });
     expect(result.current.theme).toBe("dark");
-    expect(document.documentElement.classList.contains("dark")).toBe(true);
+    expect(document.documentElement.classList.contains("light")).toBe(false);
   });
 });

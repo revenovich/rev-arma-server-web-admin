@@ -23,10 +23,10 @@ export function LoginScreen() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-sm space-y-6">
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="glass-card w-full max-w-sm space-y-6 p-8">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-2xl font-bold tracking-tight gradient-heading">
             Arma Server Admin
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -45,7 +45,7 @@ export function LoginScreen() {
               autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+              className="glass-input h-9 w-full px-3 text-sm"
               placeholder="admin"
               required
             />
@@ -61,14 +61,17 @@ export function LoginScreen() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+              className="glass-input h-9 w-full px-3 text-sm"
               placeholder="••••••••"
               required
             />
           </div>
 
           {error && (
-            <p className="text-sm text-danger" role="alert">
+            <p
+              className="rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-sm text-red-400"
+              role="alert"
+            >
               {error}
             </p>
           )}
@@ -76,7 +79,7 @@ export function LoginScreen() {
           <button
             type="submit"
             disabled={loading}
-            className="h-9 w-full rounded-lg bg-foreground text-background text-sm font-medium hover:bg-foreground/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-primary h-9 w-full justify-center"
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>

@@ -41,7 +41,7 @@ export function PresetsScreen() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-xl font-semibold tracking-tight">Presets</h1>
+      <h1 className="text-2xl font-bold tracking-tight gradient-heading">Presets</h1>
 
       {/* Upload dropzone */}
       <div
@@ -50,10 +50,10 @@ export function PresetsScreen() {
         tabIndex={0}
         aria-label="Upload preset files"
         className={cn(
-          "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 transition-colors focus-visible:outline-2 focus-visible:outline-ring",
+          "glass flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 transition-colors focus-visible:outline-2 focus-visible:outline-ring",
           isDragActive
-            ? "border-accent bg-accent/10"
-            : "border-border hover:border-accent/40 hover:bg-surface"
+            ? "border-indigo-400/40 bg-indigo-500/10"
+            : "border-white/20 hover:border-indigo-400/40"
         )}
       >
         <input {...getInputProps()} />
@@ -67,7 +67,7 @@ export function PresetsScreen() {
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 rounded-lg" />
+            <Skeleton key={i} className="h-12 rounded-xl" />
           ))}
         </div>
       ) : presets && presets.length > 0 ? (
@@ -75,7 +75,7 @@ export function PresetsScreen() {
           {presets.map((preset) => (
             <div
               key={preset.id}
-              className="flex items-center gap-3 rounded-lg bg-surface px-4 py-3 transition-colors hover:bg-surface-raised"
+              className="glass flex items-center gap-3 rounded-xl px-4 py-3 transition-colors hover:bg-white/10"
             >
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-text">{preset.name}</p>
@@ -83,14 +83,16 @@ export function PresetsScreen() {
               </div>
               <div className="flex shrink-0 gap-2">
                 <Button
+                  variant="outline"
                   size="sm"
-                  className="bg-accent/20 border border-accent/40 text-accent hover:bg-accent hover:text-white hover:border-transparent text-xs transition-colors"
+                  className="text-xs"
                 >
                   Load
                 </Button>
                 <Button
+                  variant="destructive"
                   size="sm"
-                  className="bg-danger/90 text-white hover:bg-danger border-transparent text-xs"
+                  className="text-xs"
                   aria-label={`Delete ${preset.name}`}
                 >
                   Delete
@@ -101,7 +103,7 @@ export function PresetsScreen() {
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface">
+          <div className="glass flex h-12 w-12 items-center justify-center rounded-full">
             <FolderGit2 className="h-5 w-5 text-muted-foreground" />
           </div>
           <p className="text-sm text-muted-foreground">

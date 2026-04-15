@@ -28,24 +28,29 @@ export const mockServer = {
 
 export const mockMod = {
   name: "@ace",
-  path: "/mods/@ace",
   size: 1_048_576,
-  steamId: "463939057",
-  lastModified: "2024-01-01T00:00:00Z",
+  formattedSize: "1.0 MB",
+  modFile: null,
+  steamMeta: null,
 };
 
 export const mockMission = {
   name: "altis_life.Altis.pbo",
+  missionName: "altis_life.Altis",
+  worldName: "Altis",
   size: 524_288,
   sizeFormatted: "512 KB",
-  lastModified: "2024-01-01T00:00:00Z",
+  dateCreated: "2024-01-01",
   dateModified: "2024-01-01",
 };
 
 export const mockLog = {
-  filename: "arma3server_2024-01-01.rpt",
+  name: "arma3server_2024-01-01.rpt",
+  path: "/logs/arma3server_2024-01-01.rpt",
   size: 2_048,
-  lastModified: "2024-01-01T00:00:00Z",
+  formattedSize: "2.0 KB",
+  created: "2024-01-01T00:00:00Z",
+  modified: "2024-01-01",
 };
 
 export const mockSettings = {
@@ -59,6 +64,20 @@ export const mockSteamCmdVersion = {
   version: "1.0.0",
   installed: true,
 };
+
+export const mockPreset = {
+  id: "preset-1",
+  name: "Default Preset",
+  mods: [{ name: "@ace", steamId: "463939057", directoryName: "@ace" }],
+};
+
+// ── Helper: check if URL path is a list endpoint (no sub-path after /servers/) ──
+
+function isListEndpoint(pathname: string, prefix: string): boolean {
+  // Match /api/servers or /api/servers/ but NOT /api/servers/server-1/info
+  const after = pathname.slice(prefix.length);
+  return after === "" || after === "/";
+}
 
 // ── Route mock setup ─────────────────────────────────────────────────────────
 
@@ -83,44 +102,56 @@ export async function mockApiRoutes(page: Page, overrides: MockOverrides = {}) {
     steamcmd = mockSteamCmdVersion,
   } = overrides;
 
-  // Server list + create
-  await page.route("/api/servers", (route: Route) => {
-    if (route.request().method() === "GET") {
-      return route.fulfill({ json: servers });
-    }
-    if (route.request().method() === "POST") {
-      const body = JSON.parse(route.request().postData() ?? "{}") as Record<string, unknown>;
-      return route.fulfill({ json: { ...mockServer, ...body, id: "new-server" } });
-    }
-    return route.continue();
+  // Auth — bypass login by default (no auth required)
+  await page.route("**/api/auth**", (route: Route) => {
+    return route.fulfill({ json: { auth_required: false } });
   });
 
-  // Individual server + sub-actions
-  await page.route("/api/servers/**", (route: Route) => {
+  // All server routes — handle list vs individual vs sub-actions in one handler
+  await page.route("**/api/servers**", (route: Route) => {
     const url = route.request().url();
+    const pathname = new URL(url).pathname;
     const method = route.request().method();
 
-    if (url.endsWith("/start") && method === "POST") {
+    // List endpoints: GET /api/servers/ → return array
+    if (isListEndpoint(pathname, "/api/servers")) {
+      if (method === "GET") {
+        return route.fulfill({ json: servers });
+      }
+      if (method === "POST") {
+        const body = JSON.parse(route.request().postData() ?? "{}") as Record<string, unknown>;
+        return route.fulfill({ json: { ...mockServer, ...body, id: "new-server" } });
+      }
+    }
+
+    // Sub-actions: /start, /stop
+    if (pathname.endsWith("/start") && method === "POST") {
       return route.fulfill({ json: { status: "ok", pid: 12345 } });
     }
-    if (url.endsWith("/stop") && method === "POST") {
+    if (pathname.endsWith("/stop") && method === "POST") {
       return route.fulfill({ json: { status: "ok", pid: null } });
     }
+
+    // Individual server: PUT /api/servers/server-1
     if (method === "PUT") {
       const body = JSON.parse(route.request().postData() ?? "{}") as Record<string, unknown>;
       return route.fulfill({ json: { ...mockServer, ...body } });
     }
+
+    // Delete: DELETE /api/servers/server-1
     if (method === "DELETE") {
       return route.fulfill({ status: 204, body: "" });
     }
+
+    // GET individual server
     return route.fulfill({ json: server });
   });
 
-  await page.route("/api/mods", (route: Route) => {
+  await page.route("**/api/mods**", (route: Route) => {
     return route.fulfill({ json: mods });
   });
 
-  await page.route("/api/missions", (route: Route) => {
+  await page.route("**/api/missions**", (route: Route) => {
     if (route.request().method() === "GET") {
       return route.fulfill({ json: missions });
     }
@@ -130,15 +161,19 @@ export async function mockApiRoutes(page: Page, overrides: MockOverrides = {}) {
     return route.continue();
   });
 
-  await page.route("/api/logs", (route: Route) => {
+  await page.route("**/api/logs**", (route: Route) => {
     return route.fulfill({ json: logs });
   });
 
-  await page.route("/api/settings", (route: Route) => {
+  await page.route("**/api/settings**", (route: Route) => {
     return route.fulfill({ json: settings });
   });
 
-  await page.route("/api/steamcmd/**", (route: Route) => {
+  await page.route("**/api/presets**", (route: Route) => {
+    return route.fulfill({ json: [mockPreset] });
+  });
+
+  await page.route("**/api/steamcmd/**", (route: Route) => {
     const url = route.request().url();
     const method = route.request().method();
     if (url.endsWith("/version")) {

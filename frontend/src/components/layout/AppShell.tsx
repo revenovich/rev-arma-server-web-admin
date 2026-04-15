@@ -1,18 +1,25 @@
+import { useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
+import { MobileSidebar } from "@/components/layout/MobileSidebar";
+import { AnimatedOutlet } from "@/components/layout/AnimatedOutlet";
 
-interface AppShellProps {
-  children: React.ReactNode;
-}
+export function AppShell() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-export function AppShell({ children }: AppShellProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-bg">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden bg-bg">
-        <Topbar />
-        <main className="flex-1 overflow-y-auto p-content bg-bg">
-          <div className="mx-auto max-w-content">{children}</div>
+      <MobileSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <Topbar onMenuClick={() => setSidebarOpen(true)} />
+        <main className="flex-1 overflow-y-auto p-content">
+          <div className="mx-auto max-w-content">
+            <AnimatedOutlet />
+          </div>
         </main>
       </div>
     </div>

@@ -64,8 +64,8 @@ test.describe("SteamCMD Screen", () => {
   test("branch selector shows stable and development options", async ({ page }) => {
     await page.goto("/steamcmd");
 
-    // "Branch" heading in the card
-    await expect(page.getByRole("heading", { name: "Branch" })).toBeVisible();
+    // "Branch" section label (rendered as <p class="section-label">)
+    await expect(page.locator("p.section-label", { hasText: "Branch" })).toBeVisible();
     // The select element has Stable/Development options
     await expect(page.getByRole("option", { name: "Stable (public)" })).toBeAttached();
     await expect(page.getByRole("option", { name: "Development" })).toBeAttached();

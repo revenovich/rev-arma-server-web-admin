@@ -21,12 +21,12 @@ export function SettingsScreen() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
+      <h1 className="text-2xl font-bold tracking-tight gradient-heading">Settings</h1>
 
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 rounded-lg" />
+            <Skeleton key={i} className="h-12 rounded-xl" />
           ))}
         </div>
       ) : settings ? (
@@ -34,7 +34,7 @@ export function SettingsScreen() {
           {Object.entries(settings).map(([key, value]) => (
             <div
               key={key}
-              className="flex items-center justify-between rounded-lg bg-surface px-4 py-3 hover:bg-surface-raised transition-colors"
+              className="glass flex items-center justify-between rounded-xl px-4 py-3 transition-colors hover:bg-white/10"
             >
               <span className="text-sm font-medium text-text">{key}</span>
               <span className="font-mono text-xs text-muted-foreground">
@@ -45,7 +45,7 @@ export function SettingsScreen() {
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface">
+          <div className="glass flex h-12 w-12 items-center justify-center rounded-full">
             <SettingsIcon className="h-5 w-5 text-muted-foreground" />
           </div>
           <p className="text-sm text-muted-foreground">No settings available.</p>

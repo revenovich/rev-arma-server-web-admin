@@ -74,7 +74,7 @@ export function DifficultyTab() {
     <div className="space-y-6">
       {/* Preset selector */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Difficulty Preset</h3>
+        <h3 className="section-label">Difficulty Preset</h3>
         <div className="space-y-1.5">
           <label htmlFor="difficulty-select" className="text-xs text-muted-foreground">
             Forced Difficulty
@@ -98,7 +98,7 @@ export function DifficultyTab() {
       {isCustom && (
         <>
           <Card className="space-y-4 p-5">
-            <h3 className="text-sm font-medium text-foreground">Difficulty Flags</h3>
+            <h3 className="section-label">Difficulty Flags</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               {DIFFICULTY_FLAGS.map(({ key, label }) => (
                 <div key={key} className="flex items-center justify-between gap-3">
@@ -117,7 +117,7 @@ export function DifficultyTab() {
           </Card>
 
           <Card className="space-y-4 p-5">
-            <h3 className="text-sm font-medium text-foreground">AI Skill</h3>
+            <h3 className="section-label">AI Skill</h3>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <label htmlFor="skillAI" className="text-xs text-muted-foreground">

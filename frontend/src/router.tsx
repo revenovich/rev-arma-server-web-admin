@@ -1,4 +1,4 @@
-import { type RouteObject, Outlet } from "react-router-dom";
+import { type RouteObject } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { OverviewScreen } from "@/features/servers/OverviewScreen";
 import { ServerDetailScreen } from "@/features/servers/ServerDetailScreen";
@@ -19,19 +19,27 @@ import { PresetsScreen } from "@/features/presets/PresetsScreen";
 
 // eslint-disable-next-line react-refresh/only-export-components
 function PresetDetailScreen() {
-  return <h1 className="text-2xl font-semibold">Preset Detail</h1>;
+  return (
+    <h1 className="text-2xl font-bold tracking-tight gradient-heading">
+      Preset Detail
+    </h1>
+  );
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
 function NotFoundScreen() {
-  return <h1 className="text-2xl font-semibold">Not Found</h1>;
+  return (
+    <h1 className="text-2xl font-bold tracking-tight gradient-heading">
+      Not Found
+    </h1>
+  );
 }
 
 export const routes: RouteObject[] = [
   {
-    element: <AppShell><Outlet /></AppShell>,
+    element: <AppShell />,
     children: [
-      { path: "/", element: <OverviewScreen /> },
+      { index: true, element: <OverviewScreen /> },
       {
         path: "/servers/:id",
         element: <ServerDetailScreen />,

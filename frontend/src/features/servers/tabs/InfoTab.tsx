@@ -95,7 +95,7 @@ export function InfoTab() {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Identity */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Identity</h3>
+        <h3 className="section-label">Identity</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label htmlFor="title" className="text-xs text-muted-foreground">
@@ -117,7 +117,7 @@ export function InfoTab() {
 
       {/* Passwords */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Passwords</h3>
+        <h3 className="section-label">Passwords</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label htmlFor="password" className="text-xs text-muted-foreground">
@@ -136,7 +136,7 @@ export function InfoTab() {
 
       {/* Max Players & MOTD */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Players & Messages</h3>
+        <h3 className="section-label">Players & Messages</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label htmlFor="max_players" className="text-xs text-muted-foreground">
@@ -158,7 +158,7 @@ export function InfoTab() {
 
       {/* Toggles */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Server Options</h3>
+        <h3 className="section-label">Server Options</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex items-center justify-between gap-3">
             <label id="persistent-label" htmlFor="persistent" className="text-sm">Persistent</label>

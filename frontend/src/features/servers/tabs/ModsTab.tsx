@@ -71,7 +71,7 @@ export function ModsTab() {
         {/* Available mods (left) */}
         <Card className="flex flex-col p-4">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-medium">Available Mods</h3>
+            <h3 className="section-label">Available Mods</h3>
           </div>
           <div className="relative mb-3">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
@@ -98,7 +98,7 @@ export function ModsTab() {
                   className={`flex w-full items-center rounded-md px-3 py-1.5 text-left text-sm transition-colors ${
                     selected.includes(mod)
                       ? "bg-accent text-accent-foreground"
-                      : "hover:bg-surface-raised"
+                      : "hover:bg-white/10"
                   }`}
                 >
                   <span className="truncate font-mono">{mod}</span>
@@ -111,7 +111,7 @@ export function ModsTab() {
         {/* Active mods (right) */}
         <Card className="flex flex-col p-4">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-medium">Active Mods</h3>
+            <h3 className="section-label">Active Mods</h3>
           </div>
           <div className="relative mb-3">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
@@ -138,7 +138,7 @@ export function ModsTab() {
                   className={`flex w-full items-center rounded-md px-3 py-1.5 text-left text-sm transition-colors ${
                     selected.includes(mod)
                       ? "bg-accent text-accent-foreground"
-                      : "hover:bg-surface-raised"
+                      : "hover:bg-white/10"
                   }`}
                 >
                   <span className="truncate font-mono">{mod}</span>

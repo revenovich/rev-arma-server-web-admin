@@ -16,9 +16,9 @@ export function ServerCard({ server }: ServerCardProps) {
 
   return (
     <Link to={`/servers/${server.id}/info`}>
-      <Card className="group flex flex-col gap-3 p-5 transition-colors hover:bg-surface-raised">
+      <Card className="group flex flex-col gap-3 p-5 transition-all duration-200 hover:bg-white/10 hover:scale-[1.01]">
         <div className="flex items-start justify-between">
-          <h3 className="text-base font-medium leading-snug text-foreground group-hover:text-accent">
+          <h3 className="text-base font-medium leading-snug text-foreground group-hover:text-indigo-300 transition-colors">
             {server.title}
           </h3>
           <StatusDot online={online} />

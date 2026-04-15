@@ -11,7 +11,9 @@ test.describe("Missions Screen", () => {
     await page.goto("/missions");
 
     await expect(page.getByRole("heading", { name: "Missions" })).toBeVisible();
-    await expect(page.getByText("altis_life.Altis.pbo")).toBeVisible();
+    await expect(page.getByText("altis_life.Altis")).toBeVisible();
+    // World name badge
+    await expect(page.getByText("Altis", { exact: true })).toBeVisible();
   });
 
   test("shows empty state when no missions", async ({ page }) => {

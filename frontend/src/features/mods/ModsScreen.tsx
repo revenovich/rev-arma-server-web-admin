@@ -17,10 +17,10 @@ export function ModsScreen() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-xl font-semibold tracking-tight">Mods</h1>
+        <h1 className="text-2xl font-bold tracking-tight gradient-heading">Mods</h1>
         <div className="space-y-2">
           {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 rounded-lg" />
+            <Skeleton key={i} className="h-12 rounded-xl" />
           ))}
         </div>
       </div>
@@ -32,7 +32,7 @@ export function ModsScreen() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold tracking-tight">Mods</h1>
+        <h1 className="text-2xl font-bold tracking-tight gradient-heading">Mods</h1>
         {hasMods && (
           <span className="text-xs text-muted-foreground">{mods.length} installed</span>
         )}
@@ -43,15 +43,16 @@ export function ModsScreen() {
           {mods.map((mod) => (
             <div
               key={mod.name}
-              className="flex items-center gap-3 rounded-lg bg-surface px-4 py-3 transition-colors hover:bg-surface-raised"
+              className="glass flex items-center gap-3 rounded-xl px-4 py-3 transition-colors hover:bg-white/10"
             >
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-text">{mod.name}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{mod.formattedSize}</p>
               </div>
               <Button
+                variant="destructive"
                 size="sm"
-                className="shrink-0 bg-danger/90 text-white hover:bg-danger border-transparent text-xs"
+                className="shrink-0 text-xs"
                 aria-label={`Delete ${mod.name}`}
               >
                 Delete
@@ -61,7 +62,7 @@ export function ModsScreen() {
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface">
+          <div className="glass flex h-12 w-12 items-center justify-center rounded-full">
             <Package className="h-5 w-5 text-muted-foreground" />
           </div>
           <div className="space-y-1">

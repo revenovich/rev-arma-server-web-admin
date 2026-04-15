@@ -39,7 +39,7 @@ export function HeadlessTab() {
   return (
     <div className="space-y-6">
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Headless Clients</h3>
+        <h3 className="section-label">Headless Clients</h3>
         <div className="space-y-1.5">
           <label htmlFor="hcCount" className="text-xs text-muted-foreground">
             Number of Headless Clients
@@ -59,7 +59,7 @@ export function HeadlessTab() {
       </Card>
 
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Headless Client IPs</h3>
+        <h3 className="section-label">Headless Client IPs</h3>
         <p className="text-xs text-muted-foreground">
           Configure headless client and local client IP addresses in the Advanced tab or via server.cfg.
         </p>

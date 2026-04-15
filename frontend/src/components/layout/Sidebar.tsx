@@ -9,6 +9,7 @@ import {
   FolderGit2,
   LogOut,
 } from "lucide-react";
+import { motion } from "framer-motion";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { StatusDot } from "@/components/servers/StatusDot";
 import { useServers } from "@/hooks/useServers";
@@ -31,20 +32,16 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
-export function Sidebar() {
+interface SidebarNavProps {
+  onNavigate?: () => void;
+}
+
+export function SidebarNav({ onNavigate }: SidebarNavProps) {
   const location = useLocation();
   const { data: servers } = useServers();
-  const { logout } = useAuth();
 
   return (
-    <aside className="flex h-screen w-sidebar flex-col border-r border-border bg-sidebar">
-      <div className="flex h-topbar items-center gap-2.5 border-b border-sidebar-border px-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-accent/20">
-          <Server className="h-4 w-4 text-accent" />
-        </div>
-        <span className="text-sm font-semibold tracking-tight text-sidebar-foreground">Arma Admin</span>
-      </div>
-
+    <>
       <nav aria-label="Primary" className="space-y-1 px-2 py-2">
         {NAV_ITEMS.map((item) => {
           const isActive =
@@ -53,28 +50,35 @@ export function Sidebar() {
               : location.pathname.startsWith(item.href);
 
           return (
-            <Link
+            <motion.div
               key={item.href}
-              to={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-                isActive
-                  ? "bg-accent/20 text-accent font-medium"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-              )}
+              whileHover={{ x: 6 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
             >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </Link>
+              <Link
+                to={item.href}
+                onClick={onNavigate}
+                className={cn(
+                  "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
+                  isActive
+                    ? "bg-indigo-500/20 font-medium text-indigo-100 ring-1 ring-inset ring-indigo-400/30 shadow-[0_0_12px_rgba(99,102,241,0.2)]"
+                    : "text-gray-300 hover:bg-white/5 hover:text-white",
+                )}
+              >
+                {isActive && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-full bg-indigo-400" />
+                )}
+                <item.icon className="h-4 w-4" />
+                {item.label}
+              </Link>
+            </motion.div>
           );
         })}
       </nav>
 
       {servers && servers.length > 0 && (
-        <div className="flex-1 overflow-y-auto border-t border-sidebar-border px-2 py-2">
-          <p className="mb-1 px-3 text-xs font-medium uppercase tracking-wider text-sidebar-foreground/50">
-            Servers
-          </p>
+        <div className="flex-1 overflow-y-auto border-t border-white/10 px-2 py-2">
+          <p className="section-label mb-2 px-3">Servers</p>
           <ul className="space-y-0.5" role="list">
             {servers.map((server) => {
               const online = server.state?.online ?? false;
@@ -83,11 +87,12 @@ export function Sidebar() {
                 <li key={server.id}>
                   <Link
                     to={`/servers/${server.id}/info`}
+                    onClick={onNavigate}
                     className={cn(
-                      "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
+                      "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-all duration-200",
                       isActive
-                        ? "bg-accent/20 text-accent font-medium"
-                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                        ? "bg-indigo-500/20 font-medium text-indigo-100 ring-1 ring-inset ring-indigo-400/30"
+                        : "text-gray-400 hover:bg-white/5 hover:text-white",
                     )}
                   >
                     <StatusDot online={online} className="h-2 w-2 shrink-0" />
@@ -99,14 +104,33 @@ export function Sidebar() {
           </ul>
         </div>
       )}
+    </>
+  );
+}
 
-      <div className="border-t border-sidebar-border p-2">
+export function Sidebar() {
+  const { logout } = useAuth();
+
+  return (
+    <aside className="glass hidden md:flex h-screen w-sidebar flex-col border-r border-white/10">
+      <div className="flex h-topbar items-center gap-2.5 border-b border-white/10 px-4">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/20">
+          <Server className="h-4 w-4 text-indigo-400" />
+        </div>
+        <span className="gradient-heading text-sm font-bold tracking-tight">
+          Arma Admin
+        </span>
+      </div>
+
+      <SidebarNav />
+
+      <div className="border-t border-white/10 p-2">
         <div className="flex items-center justify-between px-2">
-          <span className="text-xs text-sidebar-foreground/60">v0.1.0</span>
+          <span className="text-xs text-gray-500">v0.1.0</span>
           <div className="flex items-center gap-1">
             <button
               onClick={logout}
-              className="rounded-md p-1.5 text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+              className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
               title="Sign out"
             >
               <LogOut className="h-4 w-4" />

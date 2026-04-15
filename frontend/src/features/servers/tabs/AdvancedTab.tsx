@@ -66,7 +66,7 @@ export function AdvancedTab() {
     <div className="space-y-6">
       {/* Lifecycle */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Lifecycle</h3>
+        <h3 className="section-label">Lifecycle</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex items-center justify-between gap-3">
             <label id="persistent-label" htmlFor="persistent" className="text-sm">Persistent Mission</label>
@@ -83,7 +83,7 @@ export function AdvancedTab() {
 
       {/* MOTD */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Message of the Day</h3>
+        <h3 className="section-label">Message of the Day</h3>
         <div className="space-y-1.5">
           <label htmlFor="motd" className="text-xs text-muted-foreground">
             MOTD (one line per message)
@@ -101,7 +101,7 @@ export function AdvancedTab() {
 
       {/* Additional Config Options */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Additional Configuration</h3>
+        <h3 className="section-label">Additional Configuration</h3>
         <div className="space-y-1.5">
           <label htmlFor="additionalConfig" className="text-xs text-muted-foreground">
             Free-form server.cfg lines (one per line)

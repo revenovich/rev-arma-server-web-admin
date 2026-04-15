@@ -70,7 +70,7 @@ export function SecurityTab() {
     <div className="space-y-6">
       {/* Signatures & File Patching */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Signatures & File Patching</h3>
+        <h3 className="section-label">Signatures & File Patching</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label htmlFor="verifySignatures" className="text-xs text-muted-foreground">
@@ -107,7 +107,7 @@ export function SecurityTab() {
 
       {/* BattlEye & Kick */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Anti-Cheat & Kick</h3>
+        <h3 className="section-label">Anti-Cheat & Kick</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex items-center justify-between gap-3">
             <label id="battle-eye-label" htmlFor="battle_eye" className="text-sm">BattlEye</label>
@@ -129,7 +129,7 @@ export function SecurityTab() {
 
       {/* Server Command Password */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Server Command Password</h3>
+        <h3 className="section-label">Server Command Password</h3>
         <div className="space-y-1.5">
           <label htmlFor="serverCommandPassword" className="text-xs text-muted-foreground">
             Password for server commands (#login)

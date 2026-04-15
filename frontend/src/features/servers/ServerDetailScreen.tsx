@@ -50,7 +50,7 @@ export function ServerDetailScreen() {
       <div className="flex items-center gap-3">
         <Link
           to="/"
-          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground"
+          className="glass flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
           aria-label="Back to servers"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -58,7 +58,7 @@ export function ServerDetailScreen() {
         {isLoading ? (
           <Skeleton className="h-8 w-48" />
         ) : (
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight gradient-heading">
             {server?.title ?? "Server"}
           </h1>
         )}
@@ -72,9 +72,9 @@ export function ServerDetailScreen() {
               key={tab.value}
               value={tab.value}
               className={cn(
-                "rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors",
-                "data-[state=active]:bg-surface-raised data-[state=active]:text-foreground",
-                "hover:bg-surface-raised/50",
+                "rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-all duration-200",
+                "data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-100 data-[state=active]:ring-1 data-[state=active]:ring-inset data-[state=active]:ring-indigo-400/30",
+                "hover:bg-white/5",
               )}
             >
               {tab.label}

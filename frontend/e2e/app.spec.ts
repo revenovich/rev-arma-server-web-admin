@@ -50,28 +50,31 @@ test.describe("Theme toggle", () => {
     const toggle = page.getByRole("button", { name: /switch to/i });
     await expect(toggle).toBeVisible();
 
-    // Record current class
-    const initialClass = await html.getAttribute("class");
+    // Dark is the default — html has no .light class
+    await expect(html).not.toHaveClass(/light/);
 
+    // Toggle to light
     await toggle.click();
+    await expect(html).toHaveClass(/light/);
 
-    // Class should have changed
-    const newClass = await html.getAttribute("class");
-    expect(newClass).not.toEqual(initialClass);
-    await expect(html).toHaveClass(/dark|light/);
+    // Toggle back to dark
+    await toggle.click();
+    await expect(html).not.toHaveClass(/light/);
   });
 });
 
 test.describe("Keyboard navigation", () => {
   test("can tab through sidebar navigation links", async ({ page }) => {
     await page.goto("/");
+    // Wait for sidebar to be fully rendered
+    await page.getByRole("navigation", { name: "Primary" }).waitFor();
     // Tab several times to reach sidebar links
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 15; i++) {
       await page.keyboard.press("Tab");
     }
     // At least one element should be focused
     const focused = page.locator(":focus");
-    await expect(focused).toBeVisible();
+    await expect(focused).toBeVisible({ timeout: 3000 });
   });
 
   test("sidebar links are keyboard reachable", async ({ page }) => {

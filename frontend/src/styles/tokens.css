@@ -1,15 +1,15 @@
 /* Design tokens — dark is the default, no class required */
 
 :root {
-  /* ── Dark palette (default) ── */
-  --color-bg:           oklch(13% 0.08 265);   /* page background    */
-  --color-surface:      oklch(17% 0.08 265);   /* card / row bg      */
-  --color-surface-raised: oklch(21% 0.07 265); /* hover / elevated   */
-  --color-text:         oklch(94% 0.01 265);
-  --color-text-muted:   oklch(60% 0.04 265);
-  --color-border:       oklch(27% 0.06 265);
+  /* ── Dark palette (default) — indigo/violet hue ── */
+  --color-bg:           oklch(13% 0.06 275);   /* page background    */
+  --color-surface:      oklch(15% 0.07 275);   /* card / row bg      */
+  --color-surface-raised: oklch(19% 0.06 275); /* hover / elevated   */
+  --color-text:         oklch(95% 0.01 275);
+  --color-text-muted:   oklch(62% 0.03 275);
+  --color-border:       oklch(25% 0.05 275);
 
-  --color-accent:   oklch(61% 0.20 255);   /* vivid blue CTA */
+  --color-accent:   oklch(63% 0.22 270);   /* vivid indigo CTA */
   --color-success:  oklch(67% 0.18 155);
   --color-warning:  oklch(76% 0.16 75);
   --color-danger:   oklch(57% 0.24 25);    /* solid red        */
@@ -33,10 +33,10 @@
 
 /* Light mode — only applied when .light class is on <html> */
 .light {
-  --color-bg:             oklch(97% 0.005 265);
+  --color-bg:             oklch(97% 0.005 275);
   --color-surface:        oklch(100% 0 0);
-  --color-surface-raised: oklch(95% 0.005 265);
-  --color-text:           oklch(14% 0.02 265);
-  --color-text-muted:     oklch(48% 0.02 265);
-  --color-border:         oklch(88% 0.01 265);
+  --color-surface-raised: oklch(95% 0.005 275);
+  --color-text:           oklch(14% 0.02 275);
+  --color-text-muted:     oklch(48% 0.02 275);
+  --color-border:         oklch(88% 0.01 275);
 }

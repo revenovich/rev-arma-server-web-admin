@@ -61,7 +61,7 @@ test.describe("Overview Screen — server list", () => {
   test("shows error state when API fails", async ({ page }) => {
     // Override with error after setting up other mocks
     await mockApiRoutes(page, { servers: [] });
-    await page.route("/api/servers", (route) => {
+    await page.route("**/api/servers**", (route) => {
       return route.fulfill({ status: 500, json: { detail: "Internal Server Error" } });
     });
     await page.goto("/");

@@ -32,7 +32,7 @@ function SortableItem({ id, onRemove }: { id: string; onRemove: (id: string) => 
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-sm"
+      className="glass flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm"
     >
       <button {...attributes} {...listeners} className="cursor-grab text-muted-foreground hover:text-foreground" aria-label="Drag to reorder">
         <GripVertical className="h-4 w-4" />
@@ -121,7 +121,7 @@ export function MissionsTab() {
     <div className="space-y-6">
       {/* Toggles */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Mission Settings</h3>
+        <h3 className="section-label">Mission Settings</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex items-center justify-between gap-3">
             <label id="auto-select-label" htmlFor="autoSelectMission" className="text-sm">Auto Select Mission</label>
@@ -146,7 +146,7 @@ export function MissionsTab() {
 
       {/* Rotation list */}
       <Card className="space-y-4 p-5">
-        <h3 className="text-sm font-medium text-foreground">Mission Rotation</h3>
+        <h3 className="section-label">Mission Rotation</h3>
         {rotation.length === 0 ? (
           <p className="text-sm text-muted-foreground">No missions in rotation. Add missions from the available list.</p>
         ) : (
@@ -169,7 +169,7 @@ export function MissionsTab() {
       {/* Available missions */}
       <Card className="space-y-4 p-5">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-foreground">Available Missions</h3>
+          <h3 className="section-label">Available Missions</h3>
           <Button variant="secondary" size="sm">
             <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
             Refresh
@@ -190,7 +190,7 @@ export function MissionsTab() {
                   key={m.name}
                   type="button"
                   onClick={() => handleAddToRotation(m.name)}
-                  className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-surface-raised"
+                  className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-colors hover:bg-white/10"
                 >
                   <span className="truncate font-mono">{m.name}</span>
                   <span className="text-xs text-muted-foreground">{formatBytes(m.size)}</span>
