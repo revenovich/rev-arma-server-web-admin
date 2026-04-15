@@ -105,3 +105,15 @@ def _mount_frontend(app: FastAPI) -> None:
 # Module-level app instance so `uvicorn app.main:app` works without --factory.
 # For custom config paths, use `uvicorn app.main:create_app --factory`.
 app = create_app()
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    _settings = load_settings()
+    uvicorn.run(
+        "app.main:app",
+        host=_settings.host,
+        port=_settings.port,
+        reload=True,
+    )
