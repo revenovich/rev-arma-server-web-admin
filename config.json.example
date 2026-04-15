@@ -1,0 +1,23 @@
+{
+  "game": "arma3",
+  "path": "path-to-arma3-directory",
+  "port": 3000,
+  "host": "0.0.0.0",
+  "type": "linux",
+  "additionalConfigurationOptions": "",
+  "parameters": ["-noSound", "-world=empty"],
+  "serverMods": [],
+  "admins": [],
+  "auth": {
+    "username": "",
+    "password": ""
+  },
+  "prefix": "",
+  "suffix": "",
+  "logFormat": "dev",
+  "caddy": {
+    "base_url": "",
+    "username": "",
+    "password": ""
+  }
+}
