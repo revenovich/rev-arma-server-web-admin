@@ -93,7 +93,11 @@ def _mount_frontend(app: FastAPI) -> None:
             index = _FRONTEND_DIST / "index.html"
             from fastapi.responses import HTMLResponse
 
-            return HTMLResponse(index.read_text(encoding="utf-8"))
+            # no-store so the browser always re-fetches index.html after a rebuild
+            return HTMLResponse(
+                index.read_text(encoding="utf-8"),
+                headers={"Cache-Control": "no-store"},
+            )
     else:
         # Frontend not built yet — return a 200 placeholder so health checks pass
         @app.get("/", include_in_schema=False)

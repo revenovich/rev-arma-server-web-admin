@@ -5,102 +5,106 @@
 @import "shadcn/tailwind.css";
 @import "tailwindcss";
 
-/* ── Custom theme tokens for Tailwind v4 ── */
+/* ── Tailwind v4 custom token mapping ── */
 @theme inline {
-  --color-bg: var(--color-bg);
-  --color-surface: var(--color-surface);
+  --color-bg:             var(--color-bg);
+  --color-surface:        var(--color-surface);
   --color-surface-raised: var(--color-surface-raised);
-  --color-text: var(--color-text);
-  --color-text-muted: var(--color-text-muted);
-  --color-border: var(--color-border);
-  --color-accent: var(--color-accent);
-  --color-success: var(--color-success);
-  --color-warning: var(--color-warning);
-  --color-danger: var(--color-danger);
-
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-mono);
-
-  --text-xs: 11px;
-  --text-sm: 13px;
+  --color-text:           var(--color-text);
+  --color-text-muted:     var(--color-text-muted);
+  --color-border:         var(--color-border);
+  --color-accent:         var(--color-accent);
+  --color-success:        var(--color-success);
+  --color-warning:        var(--color-warning);
+  --color-danger:         var(--color-danger);
+  --font-sans:            var(--font-sans);
+  --font-mono:            var(--font-mono);
+  --text-xs:   11px;
+  --text-sm:   13px;
   --text-base: 14px;
-  --text-lg: 16px;
-  --text-xl: 20px;
-  --text-2xl: 24px;
-  --text-3xl: 32px;
+  --text-lg:   16px;
+  --text-xl:   20px;
+  --text-2xl:  24px;
+  --text-3xl:  32px;
 }
 
-/* ── shadcn/ui theme variables mapped to our custom tokens ── */
+/* ── shadcn/ui CSS variables ── */
 @layer base {
-  :root,
-  .dark {
-    --background: var(--color-bg);
-    --foreground: var(--color-text);
-    --card: var(--color-surface);
-    --card-foreground: var(--color-text);
-    --popover: var(--color-surface-raised);
-    --popover-foreground: var(--color-text);
-    --primary: var(--color-accent);
-    --primary-foreground: oklch(99% 0 0);
-    --secondary: var(--color-surface-raised);
+  /* Dark is the default — :root already has dark values from tokens.css */
+  :root {
+    --background:          var(--color-bg);
+    --foreground:          var(--color-text);
+    --card:                var(--color-surface);
+    --card-foreground:     var(--color-text);
+    --popover:             var(--color-surface-raised);
+    --popover-foreground:  var(--color-text);
+    --primary:             var(--color-accent);
+    --primary-foreground:  oklch(99% 0 0);
+    --secondary:           var(--color-surface-raised);
     --secondary-foreground: var(--color-text);
-    --muted: var(--color-surface-raised);
-    --muted-foreground: var(--color-text-muted);
-    --accent: var(--color-accent);
-    --accent-foreground: oklch(99% 0 0);
-    --destructive: var(--color-danger);
-    --border: var(--color-border);
-    --input: var(--color-border);
-    --ring: var(--color-accent);
-    --radius: 0.5rem;
+    --muted:               var(--color-surface-raised);
+    --muted-foreground:    var(--color-text-muted);
+    --accent:              var(--color-accent);
+    --accent-foreground:   oklch(99% 0 0);
+    --destructive:         var(--color-danger);
+    --border:              var(--color-border);
+    --input:               var(--color-border);
+    --ring:                var(--color-accent);
+    --radius:              0.5rem;
 
-    /* Sidebar — deeper navy than content area */
-    --sidebar: oklch(10% 0.09 265);
-    --sidebar-foreground: oklch(82% 0.03 265);
-    --sidebar-primary: var(--color-accent);
+    /* Sidebar — deep navy, distinctly darker than the content bg */
+    --sidebar:                 oklch(9.5% 0.09 265);
+    --sidebar-foreground:      oklch(80% 0.03 265);
+    --sidebar-primary:         var(--color-accent);
     --sidebar-primary-foreground: oklch(99% 0 0);
-    --sidebar-accent: oklch(17% 0.09 265);
+    --sidebar-accent:          oklch(16% 0.09 265);
     --sidebar-accent-foreground: oklch(92% 0.02 265);
-    --sidebar-border: oklch(19% 0.08 265);
-    --sidebar-ring: var(--color-accent);
+    --sidebar-border:          oklch(18% 0.08 265);
+    --sidebar-ring:            var(--color-accent);
   }
 
+  /* Light mode — overrides everything when .light is on <html> */
   .light {
-    --background: var(--color-bg);
-    --foreground: var(--color-text);
-    --card: var(--color-surface);
-    --card-foreground: var(--color-text);
-    --popover: var(--color-surface-raised);
-    --popover-foreground: var(--color-text);
-    --primary: oklch(18% 0 0);
-    --primary-foreground: oklch(99% 0 0);
-    --secondary: oklch(94% 0 0);
+    --background:          var(--color-bg);
+    --foreground:          var(--color-text);
+    --card:                var(--color-surface);
+    --card-foreground:     var(--color-text);
+    --popover:             var(--color-surface-raised);
+    --popover-foreground:  var(--color-text);
+    --primary:             oklch(18% 0 0);
+    --primary-foreground:  oklch(99% 0 0);
+    --secondary:           oklch(94% 0 0);
     --secondary-foreground: oklch(18% 0 0);
-    --muted: oklch(94% 0 0);
-    --muted-foreground: oklch(48% 0.02 265);
-    --accent: var(--color-accent);
-    --accent-foreground: oklch(99% 0 0);
-    --destructive: var(--color-danger);
-    --border: var(--color-border);
-    --input: var(--color-border);
-    --ring: var(--color-accent);
+    --muted:               oklch(94% 0 0);
+    --muted-foreground:    oklch(48% 0.02 265);
+    --accent:              var(--color-accent);
+    --accent-foreground:   oklch(99% 0 0);
+    --destructive:         var(--color-danger);
+    --border:              var(--color-border);
+    --input:               var(--color-border);
+    --ring:                var(--color-accent);
 
-    --sidebar: oklch(97% 0.005 265);
-    --sidebar-foreground: oklch(20% 0.02 265);
-    --sidebar-primary: var(--color-accent);
+    --sidebar:                 oklch(97% 0.005 265);
+    --sidebar-foreground:      oklch(20% 0.02 265);
+    --sidebar-primary:         var(--color-accent);
     --sidebar-primary-foreground: oklch(99% 0 0);
-    --sidebar-accent: oklch(92% 0.01 265);
+    --sidebar-accent:          oklch(92% 0.01 265);
     --sidebar-accent-foreground: oklch(15% 0.02 265);
-    --sidebar-border: oklch(88% 0.01 265);
-    --sidebar-ring: var(--color-accent);
+    --sidebar-border:          oklch(88% 0.01 265);
+    --sidebar-ring:            var(--color-accent);
   }
 
-  html,
-  body {
+  html {
     font-size: var(--text-base);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Explicit dark background so there's no flash even if JS is slow */
+    background-color: oklch(13% 0.08 265);
+    color: oklch(94% 0.01 265);
+  }
+
+  body {
     margin: 0;
     min-height: 100vh;
     background-color: var(--background);
@@ -121,22 +125,15 @@
     outline-color: var(--ring);
   }
 
-  /* Native select focus ring — matches shadcn Input focus style */
   select:focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: -1px;
     border-color: var(--ring);
   }
 
-  /* StatusDot breath animation — 2s opacity pulse for online servers */
   @keyframes status-breath {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.4;
-    }
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
   }
 
   .animate-status-breath {
@@ -144,8 +141,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .animate-status-breath {
-      animation: none;
-    }
+    .animate-status-breath { animation: none; }
   }
 }
