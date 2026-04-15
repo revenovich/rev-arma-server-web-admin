@@ -33,6 +33,7 @@
 | `availableMods` always empty | `frontend/src/features/servers/tabs/ModsTab.tsx` | `useState<string[]>([])` never populated from `useMods()`. Fixed: derive from `allMods.filter(m => !activeSet.has(m.name))` |
 | Missions losing difficulty on round-trip | `frontend/src/features/servers/tabs/MissionsTab.tsx` | Frontend treated missions as plain strings; backend stores `{template, difficulty}`. Fixed: `parseMissions()` handles both formats |
 | Entire ServerCard was a `<Link>` | `frontend/src/components/servers/ServerCard.tsx` | Full-card link blocked action buttons. Fixed: outer `<div>`, title is `<Link>`, bottom row has buttons |
+| `asChild` rejected by Base UI Trigger components | `AddServerDialog.tsx`, `ServerDetailScreen.tsx` | Base UI uses `render={<Button />}` not `asChild`. TS build error on `DialogTrigger`, `DialogClose`, `AlertDialogTrigger`. |
 
 ---
 

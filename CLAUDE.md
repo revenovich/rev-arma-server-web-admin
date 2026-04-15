@@ -47,6 +47,7 @@ See `PLAN.md` for the full step checklist and all architectural decisions.
 | `availableMods` always empty in ModsTab | `frontend/src/features/servers/tabs/ModsTab.tsx` | State was `useState<string[]>([])` — never populated from `useMods()` hook. Fixed: derive `availableMods` by filtering `allMods` against the `activeSet`. |
 | Missions stored as strings losing difficulty | `frontend/src/features/servers/tabs/MissionsTab.tsx` | Backend `server_config.py` stores missions as `{template, difficulty}` objects but old frontend code treated them as plain strings. Fixed: `parseMissions()` handles both string entries and `{template, difficulty}` objects for backward compatibility. |
 | Entire ServerCard was a `<Link>` | `frontend/src/components/servers/ServerCard.tsx` | Wrapping the full card in `<Link>` made it impossible to place action buttons without triggering navigation. Fixed: outer `<div>`, title area is `<Link>`, bottom row contains action buttons. |
+| `asChild` prop rejected by Base UI `DialogTrigger`/`AlertDialogTrigger` | `AddServerDialog.tsx`, `ServerDetailScreen.tsx` | Base UI uses a `render` prop instead of Radix's `asChild` pattern. `asChild` is unknown to Base UI's types. Fixed: `<DialogTrigger render={<Button />}>`, `<DialogClose render={<Button />}>`, `<AlertDialogTrigger render={<Button />}>`. |
 
 ---
 
