@@ -49,7 +49,7 @@ export function ModsScreen() {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {mod.sizeFormatted ?? formatBytes(mod.size)}
+                  {formatBytes(mod.size)}
                 </p>
               </div>
               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-danger" aria-label={`Delete ${mod.name}`}>

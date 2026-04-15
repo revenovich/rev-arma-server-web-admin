@@ -79,7 +79,7 @@ describe("useServerStatus", () => {
 
   it("patches server list on 'servers' event", async () => {
     const servers: Server[] = [
-      { id: "a", title: "Server A", port: 2302, state: { online: false }, pid: null } as Server,
+      { id: "a", title: "Server A", port: 2302, state: { online: false, players: 0, maxPlayers: 0, mission: null, map: null }, pid: null } as Server,
     ];
     queryClient.setQueryData(["servers"], []);
 
@@ -97,9 +97,9 @@ describe("useServerStatus", () => {
 
   it("patches individual server on 'server' event", async () => {
     const original: Server[] = [
-      { id: "a", title: "Old", port: 2302, state: { online: false }, pid: null } as Server,
+      { id: "a", title: "Old", port: 2302, state: { online: false, players: 0, maxPlayers: 0, mission: null, map: null }, pid: null } as Server,
     ];
-    const updated: Server = { id: "a", title: "New", port: 2302, state: { online: true }, pid: 123 } as Server;
+    const updated: Server = { id: "a", title: "New", port: 2302, state: { online: true, players: 5, maxPlayers: 32, mission: null, map: null }, pid: 123 } as Server;
     queryClient.setQueryData(["servers"], original);
 
     renderHook(() => useServerStatus(), { wrapper: createWrapper() });
@@ -117,9 +117,9 @@ describe("useServerStatus", () => {
 
   it("patches server state on 'server_state' event", async () => {
     const original: Server[] = [
-      { id: "a", title: "Server A", port: 2302, state: { online: false }, pid: null } as Server,
+      { id: "a", title: "Server A", port: 2302, state: { online: false, players: 0, maxPlayers: 0, mission: null, map: null }, pid: null } as Server,
     ];
-    const newState: ServerState = { online: true, players: 5, maxPlayers: 32 };
+    const newState: ServerState = { online: true, players: 5, maxPlayers: 32, mission: "altis", map: "Altis" };
     queryClient.setQueryData(["servers"], original);
 
     renderHook(() => useServerStatus(), { wrapper: createWrapper() });

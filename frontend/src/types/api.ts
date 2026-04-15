@@ -11,6 +11,7 @@ export interface Server {
   port: number;
   password: string | null;
   admin_password: string | null;
+  allowed_file_patching: number | null;
   auto_start: boolean;
   battle_eye: boolean;
   file_patching: boolean;
@@ -43,6 +44,7 @@ export interface ServerCreatePayload {
   port?: number;
   password?: string | null;
   admin_password?: string | null;
+  allowed_file_patching?: number | null;
   auto_start?: boolean;
   battle_eye?: boolean;
   file_patching?: boolean;
@@ -57,6 +59,28 @@ export interface ServerCreatePayload {
   von?: boolean;
   verify_signatures?: number;
   additionalConfigurationOptions?: string | null;
+  // Config-level fields (written to server.cfg, not servers.json)
+  autoSelectMission?: boolean;
+  randomMissionOrder?: boolean;
+  // Network config fields (written to basic.cfg)
+  MaxMsgSend?: number;
+  MaxSizeGuaranteed?: number;
+  MaxSizeNonguaranteed?: number;
+  MinBandwidth?: number;
+  MaxBandwidth?: number;
+  MinPacketSize?: number;
+  MaxPacketSize?: number;
+  MaxPing?: number;
+  MaxPacketLoss?: number;
+  MaxDesync?: number;
+  DisconnectTimeout?: number;
+  kickDuplicate?: number;
+  loopback?: number;
+  upnp?: number;
+  // Security config fields
+  filePatchingExceptions?: string[];
+  allowedLoadFileExtensions?: string[];
+  serverCommandPassword?: string | null;
 }
 
 export type ServerUpdatePayload = Partial<ServerCreatePayload>;

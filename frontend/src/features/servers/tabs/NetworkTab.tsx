@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useServer, useUpdateServer } from "@/hooks/useServers";
+import type { ServerUpdatePayload } from "@/types/api";
 
 const BANDWIDTH_PRESETS: Record<string, Record<string, number>> = {
   "Home 1Mbps": { MinBandwidth: 131072, MaxBandwidth: 1048576, MaxMsgSend: 128, MaxSizeGuaranteed: 512, MaxSizeNonguaranteed: 256, MinPacketSize: 44, MaxPacketSize: 1400 },
@@ -72,7 +73,7 @@ export function NetworkTab() {
 
   async function handleSave() {
     if (!server) return;
-    await updateServer.mutateAsync(form);
+    await updateServer.mutateAsync(form as unknown as ServerUpdatePayload);
   }
 
   if (isLoading) {

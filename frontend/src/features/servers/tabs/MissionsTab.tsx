@@ -11,6 +11,15 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useServer, useUpdateServer } from "@/hooks/useServers";
 import { useMissions } from "@/hooks/useMissions";
+import type { ServerUpdatePayload } from "@/types/api";
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+}
 
 function SortableItem({ id, onRemove }: { id: string; onRemove: (id: string) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
@@ -90,11 +99,10 @@ export function MissionsTab() {
   async function handleSave() {
     if (!server) return;
     await updateServer.mutateAsync({
-      ...server,
       missions: rotation,
       autoSelectMission,
       randomMissionOrder,
-    });
+    } as ServerUpdatePayload);
   }
 
   if (isLoading) {
@@ -176,16 +184,16 @@ export function MissionsTab() {
         ) : availableMissions && availableMissions.length > 0 ? (
           <div className="max-h-60 space-y-1 overflow-y-auto">
             {availableMissions
-              .filter((m) => !rotationSet.has(m.name))
+              .filter((m) => !rotationSet.has(m.filename))
               .map((m) => (
                 <button
-                  key={m.name}
+                  key={m.filename}
                   type="button"
-                  onClick={() => handleAddToRotation(m.name)}
+                  onClick={() => handleAddToRotation(m.filename)}
                   className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-surface-raised"
                 >
-                  <span className="truncate font-mono">{m.name}</span>
-                  <span className="text-xs text-muted-foreground">{m.sizeFormatted}</span>
+                  <span className="truncate font-mono">{m.filename}</span>
+                  <span className="text-xs text-muted-foreground">{formatBytes(m.size)}</span>
                 </button>
               ))}
           </div>

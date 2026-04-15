@@ -7,6 +7,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useMissions } from "@/hooks/useMissions";
 import { cn } from "@/lib/utils";
 
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+}
+
 export function MissionsScreen() {
   const { data: missions, isLoading, error } = useMissions();
 
@@ -66,19 +74,19 @@ export function MissionsScreen() {
       ) : missions && missions.length > 0 ? (
         <div className="space-y-2">
           {missions.map((mission) => (
-            <Card key={mission.name} className="flex items-center justify-between p-4">
+            <Card key={mission.filename} className="flex items-center justify-between p-4">
               <div className="min-w-0 flex-1">
-                <p className="truncate font-mono text-sm">{mission.name}</p>
+                <p className="truncate font-mono text-sm">{mission.filename}</p>
                 <p className="text-xs text-muted-foreground">
-                  {mission.sizeFormatted} — {mission.dateModified}
+                  {formatBytes(mission.size)} — {mission.lastModified}
                 </p>
               </div>
               <div className="flex gap-2">
                 {/* Use <a> directly to avoid nesting interactive elements inside <button> */}
                 <a
-                  href={`/api/missions/${mission.name}`}
+                  href={`/api/missions/${mission.filename}`}
                   download
-                  aria-label={`Download ${mission.name}`}
+                  aria-label={`Download ${mission.filename}`}
                   className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
                 >
                   Download

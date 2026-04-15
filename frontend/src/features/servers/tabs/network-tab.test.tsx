@@ -16,6 +16,7 @@ const MOCK_SERVER: Server = {
   battle_eye: false,
   file_patching: false,
   forcedDifficulty: null,
+  allowed_file_patching: 0,
   max_players: 32,
   missions: [],
   mods: [],
@@ -27,7 +28,7 @@ const MOCK_SERVER: Server = {
   verify_signatures: 0,
   additionalConfigurationOptions: null,
   pid: null,
-  state: { online: false },
+  state: { online: false, players: 0, maxPlayers: 0, mission: null, map: null },
 };
 
 const queryClient = new QueryClient({

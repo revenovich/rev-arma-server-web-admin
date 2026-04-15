@@ -15,6 +15,7 @@ const MOCK_SERVER: Server = {
   battle_eye: true,
   file_patching: false,
   forcedDifficulty: null,
+  allowed_file_patching: 0,
   max_players: 32,
   missions: [],
   mods: [],

@@ -11,16 +11,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const serverInfoSchema = z.object({
   title: z.string().min(1, "Server name is required"),
-  port: z.coerce.number().int().min(1).max(65535),
+  port: z.number().int().min(1).max(65535),
   password: z.string().nullable(),
   admin_password: z.string().nullable(),
-  max_players: z.coerce.number().int().min(1, "Must have at least 1 player").max(256),
+  max_players: z.number().int().min(1, "Must have at least 1 player").max(256),
   motd: z.string().nullable(),
   persistent: z.boolean(),
   von: z.boolean(),
   auto_start: z.boolean(),
   battle_eye: z.boolean(),
-  verify_signatures: z.coerce.number().int().min(0).max(2),
+  verify_signatures: z.number().int().min(0).max(2),
   file_patching: z.boolean(),
 });
 
@@ -110,7 +110,7 @@ export function InfoTab() {
             <label htmlFor="port" className="text-xs text-muted-foreground">
               Port
             </label>
-            <Input id="port" type="number" {...register("port")} />
+            <Input id="port" type="number" {...register("port", { valueAsNumber: true })} />
           </div>
         </div>
       </Card>
@@ -142,7 +142,7 @@ export function InfoTab() {
             <label htmlFor="max_players" className="text-xs text-muted-foreground">
               Max Players
             </label>
-            <Input id="max_players" type="number" {...register("max_players")} />
+            <Input id="max_players" type="number" {...register("max_players", { valueAsNumber: true })} />
             {errors.max_players && (
               <p className="text-xs text-danger">{errors.max_players.message}</p>
             )}
@@ -209,7 +209,7 @@ export function InfoTab() {
             <label htmlFor="verify_signatures" className="text-xs text-muted-foreground">
               Verify Signatures (0-2)
             </label>
-            <Input id="verify_signatures" type="number" {...register("verify_signatures")} />
+            <Input id="verify_signatures" type="number" {...register("verify_signatures", { valueAsNumber: true })} />
           </div>
         </div>
       </Card>
