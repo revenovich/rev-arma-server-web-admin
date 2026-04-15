@@ -8,7 +8,7 @@ import { ServerDetailScreen } from "./ServerDetailScreen";
 const MOCK_SERVER: Server = {
   id: "my-server",
   title: "My Arma Server",
-  port: 9520,
+  port: 2302,
   password: null,
   admin_password: null,
   auto_start: false,

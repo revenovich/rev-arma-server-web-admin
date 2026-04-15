@@ -36,7 +36,7 @@ export function InfoTab() {
     mode: "onTouched",
     defaultValues: {
       title: "",
-      port: 9520,
+      port: 2302,
       password: null,
       admin_password: null,
       max_players: 32,

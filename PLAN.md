@@ -1070,7 +1070,7 @@ class ServerSchema(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     title: str
-    port: int = 9520
+    port: int = 2302
     password: str | None = None
     admin_password: str | None = None
     max_players: int | None = None

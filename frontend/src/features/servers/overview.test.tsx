@@ -18,7 +18,7 @@ const MOCK_SERVERS: Server[] = [
   {
     id: "test-server-1",
     title: "Operation Arrowhead",
-    port: 9520,
+    port: 2302,
     password: null,
     admin_password: null,
     auto_start: false,
@@ -41,7 +41,7 @@ const MOCK_SERVERS: Server[] = [
   {
     id: "test-server-2",
     title: "PvP Warfare",
-    port: 9522,
+    port: 2304,
     password: "secret",
     admin_password: "admin",
     auto_start: true,
@@ -129,9 +129,9 @@ describe("OverviewScreen", () => {
     renderOverview();
 
     await waitFor(() => {
-      expect(screen.getByText(":9520")).toBeInTheDocument();
+      expect(screen.getByText(":2302")).toBeInTheDocument();
     });
-    expect(screen.getByText(":9522")).toBeInTheDocument();
+    expect(screen.getByText(":2304")).toBeInTheDocument();
   });
 
   it("shows mission name for online servers", async () => {

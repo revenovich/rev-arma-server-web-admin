@@ -11,7 +11,7 @@ from app.schemas.server import ServerSchema
 _FIXTURE: list[dict] = [
     {
         "title": "Main Server",
-        "port": 9520,
+        "port": 2302,
         "additionalConfigurationOptions": "",
         "admin_password": "secret",
         "allowed_file_patching": 0,
@@ -64,7 +64,7 @@ def test_manager_load_save_round_trip(tmp_path: Path) -> None:
         assert len(mgr.servers) == 1
         server = mgr.servers[0]
         assert server.title == "Main Server"
-        assert server.port == 9520
+        assert server.port == 2302
 
         # Now save and reload
         out_path = tmp_path / "servers_out.json"
@@ -85,9 +85,9 @@ def test_manager_load_save_round_trip(tmp_path: Path) -> None:
 def test_manager_sorted_by_title(tmp_path: Path) -> None:
     """servers property returns servers sorted by title.lower()."""
     fixture = [
-        {"title": "Zebra Server", "port": 9540},
-        {"title": "Alpha Server", "port": 9520},
-        {"title": "Middle Server", "port": 9530},
+        {"title": "Zebra Server", "port": 2400},
+        {"title": "Alpha Server", "port": 2302},
+        {"title": "Middle Server", "port": 2350},
     ]
     servers_json = tmp_path / "servers.json"
     servers_json.write_text(json.dumps(fixture), encoding="utf-8")
@@ -111,7 +111,7 @@ def test_manager_sorted_by_title(tmp_path: Path) -> None:
 
 def test_extra_fields_preserved(tmp_path: Path) -> None:
     """Unknown fields in servers.json (extra='allow') survive a round-trip."""
-    fixture = [{"title": "Test", "port": 9520, "unknownFutureField": "value123"}]
+    fixture = [{"title": "Test", "port": 2302, "unknownFutureField": "value123"}]
     servers_json = tmp_path / "servers.json"
     servers_json.write_text(json.dumps(fixture), encoding="utf-8")
 

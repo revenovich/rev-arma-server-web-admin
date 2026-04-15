@@ -10,7 +10,7 @@ from app.schemas.server import ServerSchema
 
 def test_server_schema_defaults() -> None:
     s = ServerSchema(title="Test")
-    assert s.port == 9520
+    assert s.port == 2302
     assert s.auto_start is False
     assert s.battle_eye is True
     assert s.mods == []

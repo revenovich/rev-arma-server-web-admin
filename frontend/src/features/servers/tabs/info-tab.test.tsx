@@ -9,7 +9,7 @@ import { InfoTab } from "./InfoTab";
 const MOCK_SERVER: Server = {
   id: "test-server",
   title: "My Arma Server",
-  port: 9520,
+  port: 2302,
   password: "playerpass",
   admin_password: "adminpass",
   auto_start: true,
@@ -102,7 +102,7 @@ describe("InfoTab", () => {
     await waitFor(() => {
       expect(screen.getByLabelText("Server Name *")).toHaveValue("My Arma Server");
     });
-    expect(screen.getByLabelText("Port")).toHaveValue(9520);
+    expect(screen.getByLabelText("Port")).toHaveValue(2302);
     expect(screen.getByLabelText("Max Players")).toHaveValue(40);
   });
 

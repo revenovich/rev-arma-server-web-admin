@@ -141,7 +141,7 @@ cp config.json.example config.json
 |-----|----------|-------------|
 | `game` | Yes | Game type — see Supported Games table above |
 | `path` | Yes | **Absolute** path to the game server directory (where the server binary lives) |
-| `port` | No | Web UI port (default `9500`). |
+| `port` | No | Web UI port (default `9500`). **Note:** This is the web admin port, not the game server port. Each Arma server instance has its own game port (default `2302`) configured in the server settings. |
 | `host` | No | IP/hostname to bind the web server to (default `0.0.0.0`) |
 | `type` | Yes | Platform type: `linux`, `windows`, or `wine` |
 | `additionalConfigurationOptions` | No | Raw text appended to `server.cfg` |

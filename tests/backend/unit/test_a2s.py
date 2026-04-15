@@ -20,7 +20,7 @@ async def test_query_status_success() -> None:
 
     with patch("a2s.ainfo", new_callable=AsyncMock, return_value=mock_info), \
          patch("a2s.aplayers", new_callable=AsyncMock, return_value=[mock_player, mock_player]):
-        result = await query_status("arma3", "127.0.0.1", 9520)
+        result = await query_status("arma3", "127.0.0.1", 2302)
 
     assert result is not None
     assert result["online"] is True
@@ -34,7 +34,7 @@ async def test_query_status_success() -> None:
 @pytest.mark.asyncio
 async def test_query_status_timeout_returns_none() -> None:
     with patch("a2s.ainfo", new_callable=AsyncMock, side_effect=TimeoutError("timed out")):
-        result = await query_status("arma3", "127.0.0.1", 9520)
+        result = await query_status("arma3", "127.0.0.1", 2302)
 
     assert result is None
 
@@ -42,7 +42,7 @@ async def test_query_status_timeout_returns_none() -> None:
 @pytest.mark.asyncio
 async def test_query_status_connection_error_returns_none() -> None:
     with patch("a2s.ainfo", new_callable=AsyncMock, side_effect=OSError("connection refused")):
-        result = await query_status("arma3", "10.0.0.1", 9520)
+        result = await query_status("arma3", "10.0.0.1", 2302)
 
     assert result is None
 
@@ -57,7 +57,7 @@ async def test_query_status_no_players(tmp_path) -> None:
 
     with patch("a2s.ainfo", new_callable=AsyncMock, return_value=mock_info), \
          patch("a2s.aplayers", new_callable=AsyncMock, return_value=[]):
-        result = await query_status("arma3", "127.0.0.1", 9520)
+        result = await query_status("arma3", "127.0.0.1", 2302)
 
     assert result is not None
     assert result["players"] == 0

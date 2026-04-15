@@ -14,13 +14,13 @@ test.describe("Overview Screen — server list", () => {
     await expect(main.getByRole("heading", { name: "Servers" })).toBeVisible();
     await expect(main.getByText("My Arma Server")).toBeVisible();
     // Port badge
-    await expect(main.getByText(":9520")).toBeVisible();
+    await expect(main.getByText(":2302")).toBeVisible();
   });
 
   test("renders multiple server cards", async ({ page }) => {
     const servers = [
-      { ...mockServer, id: "s1", title: "Alpha Server", port: 9520 },
-      { ...mockServer, id: "s2", title: "Bravo Server", port: 9524 },
+      { ...mockServer, id: "s1", title: "Alpha Server", port: 2302 },
+      { ...mockServer, id: "s2", title: "Bravo Server", port: 2312 },
     ];
     await mockApiRoutes(page, { servers });
     await page.goto("/");

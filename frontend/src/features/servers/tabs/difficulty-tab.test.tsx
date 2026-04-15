@@ -9,7 +9,7 @@ import type { Server } from "@/types/api";
 const MOCK_SERVER: Server = {
   id: "test-server",
   title: "Test Server",
-  port: 9520,
+  port: 2302,
   password: "",
   admin_password: "",
   auto_start: false,

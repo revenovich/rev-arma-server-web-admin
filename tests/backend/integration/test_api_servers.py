@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 _FIXTURE = [
     {
         "title": "Test Server",
-        "port": 9520,
+        "port": 2302,
         "auto_start": False,
         "battle_eye": True,
         "max_players": 32,
@@ -98,7 +98,7 @@ def test_create_server(tmp_path: Path) -> None:
     with patch("app.domain.manager.SERVERS_JSON", servers_json):
         app = create_app(config_path=config_file)
         with TestClient(app) as c:
-            payload = {"title": "New Server", "port": 9540}
+            payload = {"title": "New Server", "port": 2400}
             resp = c.post("/api/servers/", json=payload)
             assert resp.status_code == 201
             data = resp.json()
@@ -122,7 +122,7 @@ def test_create_server_persists_to_disk(tmp_path: Path) -> None:
     with patch("app.domain.manager.SERVERS_JSON", servers_json):
         app = create_app(config_path=config_file)
         with TestClient(app) as c:
-            c.post("/api/servers/", json={"title": "Persisted", "port": 9520})
+            c.post("/api/servers/", json={"title": "Persisted", "port": 2302})
 
         saved = _json.loads(servers_json.read_text())
         assert any(s["title"] == "Persisted" for s in saved)

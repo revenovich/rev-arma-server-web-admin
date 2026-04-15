@@ -5,7 +5,7 @@ import type { Page, Route } from "@playwright/test";
 export const mockServer = {
   id: "server-1",
   title: "My Arma Server",
-  port: 9520,
+  port: 2302,
   password: null,
   admin_password: null,
   auto_start: false,
@@ -51,7 +51,7 @@ export const mockLog = {
 export const mockSettings = {
   game: "arma3",
   path: "/opt/arma3",
-  port: 9520,
+  port: 2302,
   type: "arma3",
 };
 

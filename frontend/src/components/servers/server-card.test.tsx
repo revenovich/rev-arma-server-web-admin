@@ -7,7 +7,7 @@ import type { Server } from "@/types/api";
 const ONLINE_SERVER: Server = {
   id: "online-server",
   title: "Test Server",
-  port: 9520,
+  port: 2302,
   password: null,
   admin_password: null,
   auto_start: false,
@@ -58,7 +58,7 @@ describe("ServerCard", () => {
 
   it("renders port badge", () => {
     renderCard(ONLINE_SERVER);
-    expect(screen.getByText(":9520")).toBeInTheDocument();
+    expect(screen.getByText(":2302")).toBeInTheDocument();
   });
 
   it("renders mission for online server", () => {
