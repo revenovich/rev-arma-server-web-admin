@@ -7,10 +7,12 @@ import {
   Settings,
   Download,
   FolderGit2,
+  LogOut,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { StatusDot } from "@/components/servers/StatusDot";
 import { useServers } from "@/hooks/useServers";
+import { useAuth } from "@/features/auth/useAuth";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -32,6 +34,7 @@ const NAV_ITEMS: NavItem[] = [
 export function Sidebar() {
   const location = useLocation();
   const { data: servers } = useServers();
+  const { logout } = useAuth();
 
   return (
     <aside className="flex h-screen w-sidebar flex-col border-r border-border bg-sidebar">
@@ -97,7 +100,16 @@ export function Sidebar() {
       <div className="border-t border-sidebar-border p-2">
         <div className="flex items-center justify-between px-2">
           <span className="text-xs text-sidebar-foreground/60">v0.1.0</span>
-          <ThemeToggle />
+          <div className="flex items-center gap-1">
+            <button
+              onClick={logout}
+              className="rounded-md p-1.5 text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+              title="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+            <ThemeToggle />
+          </div>
         </div>
       </div>
     </aside>
