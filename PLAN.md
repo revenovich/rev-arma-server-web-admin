@@ -291,7 +291,7 @@ arma-server-web-admin/
 │
 ├── frontend/                     ← React frontend (Vite)
 │   ├── index.html
-│   ├── vite.config.ts            # base:'/', outDir:'dist', dev proxy /api + /ws → :8000
+│   ├── vite.config.ts            # base:'/', outDir:'dist', dev proxy /api + /ws → :9500
 │   ├── tsconfig.json
 │   ├── tailwind.config.ts
 │   ├── postcss.config.js
@@ -522,7 +522,7 @@ dev = [
 ### Phase 2 — Frontend Scaffold & Design System ✅ COMPLETE
 *Goal: Empty shell with navigation, themes, and API client wired. No real data yet.*
 
-- [x] **Step 19** — `frontend/` Vite scaffold: `npm create vite@latest frontend -- --template react-ts`, add proxy in `vite.config.ts` (`/api` + `/ws` → `localhost:8000`). Also set up Vitest + @ path alias.
+- [x] **Step 19** — `frontend/` Vite scaffold: `npm create vite@latest frontend -- --template react-ts`, add proxy in `vite.config.ts` (`/api` + `/ws` → `localhost:9500`). Also set up Vitest + @ path alias.
 - [x] **Step 20** — Tailwind CSS 4 install (upgraded from v3 to match shadcn v4) + `@tailwindcss/vite` plugin. Theme tokens registered via `@theme inline` in globals.css.
 - [x] **Step 21** — `frontend/src/styles/tokens.css` + `globals.css` (see Design Tokens section above). shadcn/ui theme variables mapped to our custom tokens.
 - [x] **Step 22** — Self-hosted fonts: `@fontsource-variable/inter`, `@fontsource-variable/jetbrains-mono`. Import in `globals.css`.
@@ -1109,10 +1109,10 @@ All existing endpoints must respond with identical JSON shapes. Capture golden f
 
 ```bash
 # Run Node app and capture responses
-curl http://localhost:3000/api/servers > tests/backend/fixtures/golden/servers.json
-curl http://localhost:3000/api/mods    > tests/backend/fixtures/golden/mods.json
-curl http://localhost:3000/api/missions > tests/backend/fixtures/golden/missions.json
-curl http://localhost:3000/api/settings > tests/backend/fixtures/golden/settings.json
+curl http://localhost:9500/api/servers > tests/backend/fixtures/golden/servers.json
+curl http://localhost:9500/api/mods    > tests/backend/fixtures/golden/mods.json
+curl http://localhost:9500/api/missions > tests/backend/fixtures/golden/missions.json
+curl http://localhost:9500/api/settings > tests/backend/fixtures/golden/settings.json
 ```
 
 ### Server ID generation
@@ -1156,12 +1156,12 @@ server_id = slugify(title).replace('.', '-')
 ```bash
 # Backend (Python)
 uv sync                              # install deps
-uvicorn app.main:app --reload        # dev server on :8000
+uvicorn app.main:app --reload        # dev server on :9500
 
 # Frontend
 cd frontend
 npm install
-npm run dev                          # Vite dev on :5173, proxies /api + /ws to :8000
+npm run dev                          # Vite dev on :9510, proxies /api + /ws to :9500
 npm run gen:types                    # regenerate types from OpenAPI
 npm run build                        # produces frontend/dist/
 

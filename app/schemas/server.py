@@ -15,7 +15,7 @@ class ServerSchema(BaseModel):
     model_config = ConfigDict(extra="allow", populate_by_name=True)
 
     title: str
-    port: int = 2302
+    port: int = 2302  # default Arma game port; override per-server as needed
 
     # Persisted as-is from the original Node.js app
     additionalConfigurationOptions: str | None = None
