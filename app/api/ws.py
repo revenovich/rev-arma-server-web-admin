@@ -123,9 +123,9 @@ async def _send_initial_snapshot(websocket: WebSocket, app: Any) -> None:
         mods_data = []
     await websocket.send_json({"type": "mods", "serverId": None, "payload": mods_data})
 
-    # missions
+    # missions — use mode="json" so datetime fields become ISO strings, not Python objects
     try:
-        missions_data = [m.model_dump() for m in await missions_domain.list_missions(settings)]
+        missions_data = [m.model_dump(mode="json") for m in await missions_domain.list_missions(settings)]
     except Exception:
         missions_data = []
     await websocket.send_json({"type": "missions", "serverId": None, "payload": missions_data})
