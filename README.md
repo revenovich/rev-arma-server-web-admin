@@ -16,7 +16,7 @@ A web-based admin panel for Arma Dedicated Servers. Manage multiple server insta
 - Preset management — parse, compare, and sync Arma Launcher HTML presets
 - SteamCMD integration for server installs and updates
 - WebSocket-based live updates (no polling)
-- HTTP Basic Auth with IP-based brute-force lockout
+- Custom login screen with HTTP Basic Auth and IP-based brute-force lockout (dark mode by default)
 
 ---
 
@@ -542,6 +542,8 @@ The app requires **Python 3.9 or newer**.
 | Server stuck "running" after crash (Wine) | Wine crash dialog blocking process | Run `winetricks nocrashdialog` |
 | `429 Too Many Requests` on login | IP brute-force lockout triggered | Wait 60 seconds or restart the backend |
 | Mod download endpoints return 400 | `caddy.base_url` not set | Configure Caddy integration or ignore these features |
+| Login screen doesn't appear / "Failed to load servers" shown | Auth is configured but the frontend dist is stale | Rebuild: `cd frontend && npm run build` |
+| Login screen doesn't appear / shows full app | Auth credentials exist in `sessionStorage` from a previous session | Open DevTools → Application → Session Storage → clear `arma_auth` key |
 | Frontend shows no data | Backend not running or CORS issue | Ensure `uvicorn` is running on port 9500 |
 | `ModuleNotFoundError` on startup | Python 3.8 or older | Upgrade to Python 3.9+ |
 

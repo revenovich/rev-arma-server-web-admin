@@ -66,8 +66,9 @@ def create_app(config_path: Path | None = None) -> FastAPI:
 
 
 def _register_routes(app: FastAPI) -> None:
-    from app.api import logs, missions, mods, presets, servers, settings, steamcmd, ws
+    from app.api import auth, logs, missions, mods, presets, servers, settings, steamcmd, ws
 
+    app.include_router(auth.router)
     app.include_router(servers.router)
     app.include_router(missions.router)
     app.include_router(mods.router)

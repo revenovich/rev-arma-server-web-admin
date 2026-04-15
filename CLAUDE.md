@@ -17,6 +17,7 @@ See `PLAN.md` for the full step checklist and all architectural decisions.
 - Coverage: 80.03% (`fail_under = 80` enforced via `pyproject.toml`).
 - CI: `.github/workflows/ci.yml` runs ruff + mypy + pytest-cov (backend) and eslint + tsc + vitest + vite build (frontend).
 - README: Fully rewritten for the Python stack with install guide, config reference, platform warnings.
+- Auth: Custom login screen with dedicated `GET /api/auth` probe endpoint (no credentials needed). Theme defaults to dark mode.
 
 ## What to do in a new session
 
@@ -34,6 +35,8 @@ See `PLAN.md` for the full step checklist and all architectural decisions.
 | `_is_junction()` using `path.stat()` | `app/services/mod_linker.py` | `stat()` follows junctions. Use `path.lstat()` to get the junction's own attributes. |
 | `structlog.stdlib.add_logger_name` crash | `app/core/logging.py` | Requires `stdlib.LoggerFactory`. Not in processor chain — use `PrintLoggerFactory` instead. |
 | Auth lockout state polluting tests | `tests/backend/unit/test_auth.py` | `app.api._fail_counts` and `_fail_times` are module-level dicts. Clear them in test setup/teardown. |
+| Auth probe using protected endpoint | `frontend/src/features/auth/useAuth.tsx` | Old probe called `GET /api/servers` (requires auth) — non-401 errors bypassed login entirely. Fixed: probe `GET /api/auth` (no auth needed, returns `{auth_required: bool}`). |
+| Default theme showing light mode | `frontend/src/lib/theme.ts` | `getSystemPreference()` picked up OS light mode, making the dark-first UI look unstyled. Fixed: always default to `"dark"` unless user explicitly toggled. |
 | `Preset` schema missing `source_file`/`mod_count` | test helpers | `_preset()` helper must pass `source_file` and `mod_count`; `groups` field does not exist. |
 
 ---
@@ -106,6 +109,7 @@ app/
 │   └── mod_updater.py   # Re-download stale/missing files, delete local-only files
 ├── api/
 │   ├── __init__.py      # require_auth() — hmac.compare_digest, disabled when creds empty
+│   ├── auth.py          # GET /api/auth — returns {auth_required: bool}, no credentials needed
 │   ├── servers.py       # 7 routes + config sub-resource
 │   ├── missions.py      # 6 routes (upload max 64, download, workshop)
 │   ├── mods.py          # GET /

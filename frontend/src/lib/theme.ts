@@ -2,17 +2,11 @@ export type Theme = "dark" | "light";
 
 export const THEME_KEY = "arma-admin-theme";
 
-function getSystemPreference(): Theme {
-  if (typeof window === "undefined") return "dark";
-  return window.matchMedia("(prefers-color-scheme: light)").matches
-    ? "light"
-    : "dark";
-}
-
 export function getTheme(): Theme {
   const stored = localStorage.getItem(THEME_KEY);
   if (stored === "light" || stored === "dark") return stored;
-  return getSystemPreference();
+  // Admin tool defaults to dark mode; user can switch via the theme toggle
+  return "dark";
 }
 
 export function setTheme(theme: Theme): void {

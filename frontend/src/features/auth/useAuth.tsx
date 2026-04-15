@@ -18,44 +18,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authRequired, setAuthRequired] = useState(true);
   const [isChecking, setIsChecking] = useState(true);
 
-  // On mount, check if auth is required and if we have stored credentials
   useEffect(() => {
     const stored = sessionStorage.getItem(AUTH_KEY);
 
-    if (stored) {
+    async function checkAuth() {
       try {
-        const { username, password } = JSON.parse(stored);
-        api.setAuth(username, password);
-      } catch {
-        sessionStorage.removeItem(AUTH_KEY);
-      }
-    }
+        // 1. Check if auth is required — this endpoint needs no credentials
+        const { auth_required } = await api.get<{ auth_required: boolean }>("/auth");
 
-    // Probe the server — if we get 200, auth is either disabled or credentials work
-    // If we get 401, auth is required and credentials are missing/invalid
-    api.get("/servers").then(
-      () => {
-        // Either no auth required, or stored credentials are valid
-        setIsAuthenticated(true);
-        setAuthRequired(stored !== null); // auth required only if we used stored creds
-        setIsChecking(false);
-      },
-      (err) => {
-        if (err instanceof ApiError && err.status === 401) {
-          // Auth is required but no valid credentials
-          api.clearAuth();
-          sessionStorage.removeItem(AUTH_KEY);
-          setIsAuthenticated(false);
-          setAuthRequired(true);
-          setIsChecking(false);
-        } else {
-          // Server unreachable — treat as no auth for now (will retry on API calls)
+        if (!auth_required) {
+          // Auth is disabled on the server — go straight in
           setIsAuthenticated(true);
           setAuthRequired(false);
           setIsChecking(false);
+          return;
         }
-      },
-    );
+
+        // 2. Auth is required
+        setAuthRequired(true);
+
+        if (!stored) {
+          // No stored credentials — show login screen
+          setIsAuthenticated(false);
+          setIsChecking(false);
+          return;
+        }
+
+        // 3. Try to validate stored credentials
+        try {
+          const { username, password } = JSON.parse(stored);
+          api.setAuth(username, password);
+          await api.get("/servers");
+          setIsAuthenticated(true);
+        } catch {
+          // Stored credentials are invalid or expired
+          api.clearAuth();
+          sessionStorage.removeItem(AUTH_KEY);
+          setIsAuthenticated(false);
+        }
+      } catch {
+        // Cannot reach server at all — show login screen
+        // (the login form will report a connection error when the user tries)
+        setIsAuthenticated(false);
+        setAuthRequired(true);
+      } finally {
+        setIsChecking(false);
+      }
+    }
+
+    checkAuth();
   }, []);
 
   const login = useCallback(async (username: string, password: string) => {
