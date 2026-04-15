@@ -14,6 +14,11 @@ export class ApiError extends Error {
 
 let authHeader: string | null = null;
 
+/** @internal Exposed for WebSocket auth — do not use outside this module. */
+export function _getAuthHeader(): string | null {
+  return authHeader;
+}
+
 function buildHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",

@@ -9,6 +9,8 @@
  * - Client reconnects with exponential backoff + jitter on disconnect
  */
 
+import { _getAuthHeader } from "./api";
+
 type WsEventHandler = (event: WsEvent) => void;
 
 interface WsEvent {
@@ -28,7 +30,19 @@ const handlers = new Set<WsEventHandler>();
 
 function getWsUrl(): string {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${window.location.host}/ws`;
+  const base = `${protocol}//${window.location.host}/ws`;
+
+  // When auth is configured, browsers can't set Authorization headers on
+  // WebSocket upgrade requests. Instead, pass the Base64 credentials as a
+  // ``token`` query parameter. The backend's _check_ws_auth reads this.
+  const authHeader = _getAuthHeader();
+  if (authHeader) {
+    // authHeader is "Basic <base64>" — send just the base64 part
+    const token = authHeader.replace("Basic ", "");
+    return `${base}?token=${encodeURIComponent(token)}`;
+  }
+
+  return base;
 }
 
 function scheduleReconnect() {

@@ -15,7 +15,14 @@ router = APIRouter()
 
 
 def _check_ws_auth(websocket: WebSocket) -> bool:
-    """Validate HTTP Basic Auth from the WS upgrade headers. Returns True if allowed."""
+    """Validate auth for WebSocket connections.
+
+    Browsers cannot set custom headers on WebSocket upgrade requests,
+    so we support two methods:
+    1. Standard Authorization header (for programmatic clients)
+    2. Base64 token in the ``token`` query parameter (for browser clients)
+       e.g. ``ws://host/ws?token=base64(user:pass)``
+    """
     settings = get_settings()
     cfg_user = settings.auth.username
     cfg_pass = settings.auth.password
@@ -32,14 +39,24 @@ def _check_ws_auth(websocket: WebSocket) -> bool:
             return False
         _fail_counts[client_ip] = 0
 
+    # Try Authorization header first (programmatic clients)
     auth_header = websocket.headers.get("authorization", "")
-    if not auth_header.lower().startswith("basic "):
+    credentials = ""
+    if auth_header.lower().startswith("basic "):
+        credentials = auth_header[6:]
+    else:
+        # Fallback: token query parameter (browser WS clients)
+        token = websocket.query_params.get("token", "")
+        if token:
+            credentials = token
+
+    if not credentials:
         _fail_counts[client_ip] += 1
         _fail_times[client_ip] = time.monotonic()
         return False
 
     try:
-        decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
+        decoded = base64.b64decode(credentials).decode("utf-8")
         username, _, password = decoded.partition(":")
     except Exception:
         _fail_counts[client_ip] += 1
