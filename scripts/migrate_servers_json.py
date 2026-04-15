@@ -61,7 +61,7 @@ def migrate_entry(entry: dict) -> dict:
     # But we can set defaults for missing required fields
     defaults: dict = {
         "title": entry.get("title", "Unnamed Server"),
-        "port": entry.get("port", 2302),
+        "port": entry.get("port", 9520),
     }
 
     merged = {**defaults, **entry}

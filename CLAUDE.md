@@ -11,8 +11,8 @@ See `PLAN.md` for the full step checklist and all architectural decisions.
 
 ## Current state (as of 2026-04-15)
 
-- Backend: FastAPI on port 8000, all routes implemented and tested.
-- Frontend: React 18 + Vite on port 5173 (dev), served from `frontend/dist/` (prod).
+- Backend: FastAPI on port 9500, all routes implemented and tested.
+- Frontend: React 18 + Vite on port 9510 (dev), served from `frontend/dist/` (prod).
 - Tests: 288 backend tests pass (`python -m pytest tests/ -q`), 3 skipped (Linux symlink tests on Windows).
 - Coverage: 80.03% (`fail_under = 80` enforced via `pyproject.toml`).
 - CI: `.github/workflows/ci.yml` runs ruff + mypy + pytest-cov (backend) and eslint + tsc + vitest + vite build (frontend).
@@ -48,7 +48,7 @@ pip install -e .
 # OR with uv: uv sync
 
 # Start backend (hot-reload)
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 9500
 
 # Run all backend tests
 python -m pytest tests/ -q
@@ -183,7 +183,7 @@ tests/
 ```bash
 cd frontend
 
-npm run dev          # Vite dev server on :5173 (proxies /api + /ws to :8000)
+npm run dev          # Vite dev server on :9510 (proxies /api + /ws to :9500)
 npm run build        # Production build → frontend/dist/
 npm run typecheck    # tsc --noEmit
 npm run lint         # eslint

@@ -12,7 +12,7 @@ def _make_server(**overrides) -> ServerSchema:
     """Create a minimal ServerSchema with defaults."""
     defaults = dict(
         title="Test Server",
-        port=2302,
+        port=9520,
         password="",
         admin_password="",
         max_players=32,
@@ -40,7 +40,7 @@ def _make_settings(**overrides) -> Settings:
     defaults = dict(
         game="arma3",
         path="/tmp/arma",
-        port=2302,
+        port=9520,
         type="linux",
     )
     defaults.update(overrides)

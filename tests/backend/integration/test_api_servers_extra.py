@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 _FIXTURE = [
     {
         "title": "Test Server",
-        "port": 2302,
+        "port": 9520,
         "auto_start": False,
         "battle_eye": True,
         "max_players": 32,
@@ -48,7 +48,7 @@ def client_with_server(tmp_path: Path) -> tuple[TestClient, str]:
 
 def test_update_server_changes_title(client_with_server: tuple) -> None:
     c, sid = client_with_server
-    resp = c.put(f"/api/servers/{sid}", json={"title": "Renamed", "port": 2302})
+    resp = c.put(f"/api/servers/{sid}", json={"title": "Renamed", "port": 9520})
     assert resp.status_code == 200
     assert resp.json()["title"] == "Renamed"
 
@@ -172,5 +172,5 @@ def test_create_server_missing_title_rejected(tmp_path: Path) -> None:
     with patch("app.domain.manager.SERVERS_JSON", servers_json):
         app = create_app(config_path=config_file)
         with TestClient(app, raise_server_exceptions=True) as c:
-            resp = c.post("/api/servers/", json={"port": 2302})
+            resp = c.post("/api/servers/", json={"port": 9520})
     assert resp.status_code == 400

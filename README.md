@@ -116,7 +116,7 @@ cp config.json.example config.json
 {
   "game": "arma3_x64",
   "path": "/opt/arma3",
-  "port": 3000,
+  "port": 9500,
   "host": "0.0.0.0",
   "type": "linux",
   "additionalConfigurationOptions": "",
@@ -141,7 +141,7 @@ cp config.json.example config.json
 |-----|----------|-------------|
 | `game` | Yes | Game type — see Supported Games table above |
 | `path` | Yes | **Absolute** path to the game server directory (where the server binary lives) |
-| `port` | No | Web UI port (default `3000`). The FastAPI backend always starts on `8000` internally. |
+| `port` | No | Web UI port (default `9500`). |
 | `host` | No | IP/hostname to bind the web server to (default `0.0.0.0`) |
 | `type` | Yes | Platform type: `linux`, `windows`, or `wine` |
 | `additionalConfigurationOptions` | No | Raw text appended to `server.cfg` |
@@ -186,7 +186,7 @@ Open two terminals:
 **Terminal 1 — Backend**
 
 ```bash
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 9500
 ```
 
 **Terminal 2 — Frontend**
@@ -196,7 +196,7 @@ cd frontend
 npm run dev
 ```
 
-The Vite dev server runs on `http://localhost:5173` and proxies all `/api` and `/ws` requests to the FastAPI backend at `http://localhost:8000`.
+The Vite dev server runs on `http://localhost:9510` and proxies all `/api` and `/ws` requests to the FastAPI backend at `http://localhost:9500`.
 
 ---
 
@@ -215,10 +215,10 @@ This outputs static files to `frontend/dist/`.
 ### 2. Start the backend
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+uvicorn app.main:app --host 0.0.0.0 --port 9500
 ```
 
-FastAPI automatically serves the built frontend bundle from `frontend/dist/` at the root URL. The web UI is then available at `http://your-server:8000`.
+FastAPI automatically serves the built frontend bundle from `frontend/dist/` at the root URL. The web UI is then available at `http://your-server:9500`.
 
 ### Tip: Run as a service (Linux systemd)
 
@@ -231,7 +231,7 @@ After=network.target
 [Service]
 User=arma
 WorkingDirectory=/opt/arma-server-web-admin
-ExecStart=/usr/local/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+ExecStart=/usr/local/bin/uvicorn app.main:app --host 0.0.0.0 --port 9500
 Restart=on-failure
 RestartSec=5
 
@@ -401,7 +401,7 @@ The app requires **Python 3.9 or newer**.
 | Server stuck "running" after crash (Wine) | Wine crash dialog blocking process | Run `winetricks nocrashdialog` |
 | `429 Too Many Requests` on login | IP brute-force lockout triggered | Wait 60 seconds or restart the backend |
 | Mod download endpoints return 400 | `caddy.base_url` not set | Configure Caddy integration or ignore these features |
-| Frontend shows no data | Backend not running or CORS issue | Ensure `uvicorn` is running on port 8000 |
+| Frontend shows no data | Backend not running or CORS issue | Ensure `uvicorn` is running on port 9500 |
 | `ModuleNotFoundError` on startup | Python 3.8 or older | Upgrade to Python 3.9+ |
 
 ---

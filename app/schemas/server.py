@@ -15,7 +15,7 @@ class ServerSchema(BaseModel):
     model_config = ConfigDict(extra="allow", populate_by_name=True)
 
     title: str
-    port: int = 2302
+    port: int = 9520
 
     # Persisted as-is from the original Node.js app
     additionalConfigurationOptions: str | None = None

@@ -55,7 +55,7 @@ test.describe("Server Detail — Info tab form", () => {
     await page.goto("/servers/server-1/info");
 
     await expect(page.getByLabel(/server name/i)).toHaveValue("My Arma Server");
-    await expect(page.getByLabel(/port/i)).toHaveValue("2302");
+    await expect(page.getByLabel(/port/i)).toHaveValue("9520");
     await expect(page.getByLabel(/max players/i)).toHaveValue("64");
   });
 

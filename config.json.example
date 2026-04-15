@@ -1,7 +1,7 @@
 {
   "game": "arma3",
   "path": "path-to-arma3-directory",
-  "port": 3000,
+  "port": 9500,
   "host": "0.0.0.0",
   "type": "linux",
   "additionalConfigurationOptions": "",

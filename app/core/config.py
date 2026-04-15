@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     # Core — mirrors config.js keys
     game: str = "arma3"
     path: str = ""
-    port: int = 3000
+    port: int = 9500
     host: str = "0.0.0.0"
     type: str = "linux"  # linux | windows | wine
     prefix: str = ""
