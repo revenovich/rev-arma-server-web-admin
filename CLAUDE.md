@@ -249,11 +249,6 @@ All design tokens defined in PLAN.md "Design Tokens" section — implement in `t
 
 ---
 
-## Node.js app (master branch — do not modify on python-rewrite)
+## Original Node.js app (master branch)
 
-The original app still runs from `app.js`. Commands below only apply on `master`:
-
-```bash
-npm install && npm start     # run original app
-npm test                     # mocha tests
-```
+The `master` branch contains the original Node.js/Express + Backbone.js app. It is independent of this branch and should not be modified from `python-rewrite`.
