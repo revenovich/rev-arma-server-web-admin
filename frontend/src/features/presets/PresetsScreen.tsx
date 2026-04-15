@@ -2,11 +2,11 @@ import { FolderGit2, Upload, AlertTriangle } from "lucide-react";
 import { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { Preset } from "@/types/api";
+import { cn } from "@/lib/utils";
 
 const PRESETS_KEY = ["presets"] as const;
 
@@ -49,9 +49,12 @@ export function PresetsScreen() {
         role="button"
         tabIndex={0}
         aria-label="Upload preset files"
-        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border p-8 transition-colors focus-visible:outline-2 focus-visible:outline-ring ${
-          isDragActive ? "border-accent bg-surface-raised" : "hover:border-muted-foreground/50"
-        }`}
+        className={cn(
+          "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 transition-colors focus-visible:outline-2 focus-visible:outline-ring",
+          isDragActive
+            ? "border-accent bg-accent/10 text-accent"
+            : "border-border hover:border-accent/50 hover:bg-surface-raised"
+        )}
       >
         <input {...getInputProps()} />
         <Upload className="h-8 w-8 text-muted-foreground" />
@@ -62,25 +65,42 @@ export function PresetsScreen() {
 
       {/* Presets list */}
       {isLoading ? (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 rounded-lg" />
+            <Skeleton key={i} className="h-14 rounded-lg" />
           ))}
         </div>
       ) : presets && presets.length > 0 ? (
-        <div className="space-y-2">
-          {presets.map((preset) => (
-            <Card key={preset.id} className="flex items-center justify-between p-4">
+        <div className="overflow-hidden rounded-lg border border-border">
+          {presets.map((preset, i) => (
+            <div
+              key={preset.id}
+              className={`flex items-center gap-4 px-4 py-3 transition-colors hover:bg-surface-raised ${
+                i !== presets.length - 1 ? "border-b border-border" : ""
+              }`}
+            >
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">{preset.name}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {preset.mods.length} mods
                 </p>
               </div>
-              <Button variant="ghost" size="sm">
-                View
-              </Button>
-            </Card>
+              <div className="flex shrink-0 gap-2">
+                <Button
+                  size="sm"
+                  className="bg-accent/15 border border-accent/40 text-accent hover:bg-accent hover:text-white hover:border-accent transition-colors"
+                >
+                  Load
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-danger text-white hover:bg-danger/80 border-transparent"
+                  aria-label={`Delete ${preset.name}`}
+                >
+                  Delete
+                </Button>
+              </div>
+            </div>
           ))}
         </div>
       ) : (

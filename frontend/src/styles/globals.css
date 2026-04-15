@@ -52,13 +52,13 @@
     --input: var(--color-border);
     --ring: var(--color-accent);
     --radius: 0.5rem;
-    --sidebar: var(--color-surface);
+    --sidebar: oklch(11% 0.04 265);
     --sidebar-foreground: var(--color-text);
     --sidebar-primary: var(--color-accent);
     --sidebar-primary-foreground: oklch(99% 0 0);
-    --sidebar-accent: var(--color-surface-raised);
+    --sidebar-accent: oklch(18% 0.05 265);
     --sidebar-accent-foreground: var(--color-text);
-    --sidebar-border: var(--color-border);
+    --sidebar-border: oklch(20% 0.04 265);
     --sidebar-ring: var(--color-accent);
   }
 
@@ -81,13 +81,13 @@
     --border: var(--color-border);
     --input: var(--color-border);
     --ring: var(--color-accent);
-    --sidebar: var(--color-surface);
+    --sidebar: oklch(11% 0.04 265);
     --sidebar-foreground: var(--color-text);
     --sidebar-primary: var(--color-accent);
     --sidebar-primary-foreground: oklch(99% 0 0);
-    --sidebar-accent: var(--color-surface-raised);
+    --sidebar-accent: oklch(18% 0.05 265);
     --sidebar-accent-foreground: var(--color-text);
-    --sidebar-border: var(--color-border);
+    --sidebar-border: oklch(20% 0.04 265);
     --sidebar-ring: var(--color-accent);
   }
 

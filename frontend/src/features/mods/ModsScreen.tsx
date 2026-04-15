@@ -1,6 +1,5 @@
-import { Package, Trash2 } from "lucide-react";
+import { Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMods } from "@/hooks/useMods";
@@ -20,7 +19,7 @@ export function ModsScreen() {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold tracking-tight">Mods</h1>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-14 rounded-lg" />
           ))}
@@ -33,29 +32,43 @@ export function ModsScreen() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Mods</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Mods</h1>
+        {hasMods && (
+          <span className="text-sm text-muted-foreground">{mods.length} mods</span>
+        )}
+      </div>
 
       {hasMods ? (
-        <div className="space-y-2">
-          {mods.map((mod) => (
-            <Card key={mod.name} className="flex items-center gap-4 p-4">
+        <div className="overflow-hidden rounded-lg border border-border">
+          {mods.map((mod, i) => (
+            <div
+              key={mod.name}
+              className={`flex items-center gap-4 px-4 py-3 transition-colors hover:bg-surface-raised ${
+                i !== mods.length - 1 ? "border-b border-border" : ""
+              }`}
+            >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="truncate font-mono text-sm">{mod.name}</span>
+                  <span className="truncate font-mono text-sm font-medium">{mod.name}</span>
                   {mod.steamId && (
-                    <Badge variant="secondary" className="font-mono text-xs shrink-0">
+                    <Badge variant="secondary" className="font-mono text-xs shrink-0 bg-accent/15 text-accent border-accent/30">
                       Steam
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {formatBytes(mod.size)}
                 </p>
               </div>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-danger" aria-label={`Delete ${mod.name}`}>
-                <Trash2 className="h-4 w-4" />
+              <Button
+                size="sm"
+                className="shrink-0 bg-danger text-white hover:bg-danger/80 border-transparent"
+                aria-label={`Delete ${mod.name}`}
+              >
+                Delete
               </Button>
-            </Card>
+            </div>
           ))}
         </div>
       ) : (

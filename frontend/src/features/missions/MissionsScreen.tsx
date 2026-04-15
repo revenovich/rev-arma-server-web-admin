@@ -2,9 +2,8 @@ import { Map, Upload, RefreshCw } from "lucide-react";
 import { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMissions } from "@/hooks/useMissions";
+import { useMissions, useDeleteMission, useRefreshMissions } from "@/hooks/useMissions";
 import { cn } from "@/lib/utils";
 
 function formatBytes(bytes: number): string {
@@ -17,6 +16,8 @@ function formatBytes(bytes: number): string {
 
 export function MissionsScreen() {
   const { data: missions, isLoading, error } = useMissions();
+  const deleteMission = useDeleteMission();
+  const refreshMissions = useRefreshMissions();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const formData = new FormData();
@@ -42,20 +43,27 @@ export function MissionsScreen() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Missions</h1>
-        <Button variant="secondary" size="sm">
-          <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => refreshMissions.mutate()}
+          disabled={refreshMissions.isPending}
+        >
+          <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", refreshMissions.isPending && "animate-spin")} />
           Refresh
         </Button>
       </div>
 
-      {/* Upload dropzone — use <label> so the file input has a proper label association
-          and there is no interactive-inside-interactive violation */}
+      {/* Upload dropzone */}
       <label
         {...getRootProps({ role: undefined, tabIndex: 0 })}
         htmlFor="mission-upload"
-        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border p-8 transition-colors focus-visible:outline-2 focus-visible:outline-ring ${
-          isDragActive ? "border-accent bg-surface-raised" : "hover:border-muted-foreground/50"
-        }`}
+        className={cn(
+          "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 transition-colors focus-visible:outline-2 focus-visible:outline-ring",
+          isDragActive
+            ? "border-accent bg-accent/10 text-accent"
+            : "border-border hover:border-accent/50 hover:bg-surface-raised"
+        )}
       >
         <input {...getInputProps()} id="mission-upload" />
         <Upload className="h-8 w-8 text-muted-foreground" />
@@ -66,33 +74,49 @@ export function MissionsScreen() {
 
       {/* Mission list */}
       {isLoading ? (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-14 rounded-lg" />
           ))}
         </div>
       ) : missions && missions.length > 0 ? (
-        <div className="space-y-2">
-          {missions.map((mission) => (
-            <Card key={mission.filename} className="flex items-center justify-between p-4">
+        <div className="overflow-hidden rounded-lg border border-border">
+          {missions.map((mission, i) => (
+            <div
+              key={mission.filename}
+              className={`flex items-center gap-4 px-4 py-3 transition-colors hover:bg-surface-raised ${
+                i !== missions.length - 1 ? "border-b border-border" : ""
+              }`}
+            >
               <div className="min-w-0 flex-1">
-                <p className="truncate font-mono text-sm">{mission.filename}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="truncate font-mono text-sm font-medium">{mission.filename}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {formatBytes(mission.size)} — {mission.lastModified}
                 </p>
               </div>
-              <div className="flex gap-2">
-                {/* Use <a> directly to avoid nesting interactive elements inside <button> */}
+              <div className="flex shrink-0 gap-2">
                 <a
                   href={`/api/missions/${mission.filename}`}
                   download
                   aria-label={`Download ${mission.filename}`}
-                  className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+                  className={cn(
+                    buttonVariants({ size: "sm" }),
+                    "bg-accent/15 border border-accent/40 text-accent hover:bg-accent hover:text-white hover:border-accent transition-colors"
+                  )}
                 >
                   Download
                 </a>
+                <Button
+                  size="sm"
+                  className="bg-danger text-white hover:bg-danger/80 border-transparent"
+                  onClick={() => deleteMission.mutate(mission.filename)}
+                  disabled={deleteMission.isPending}
+                  aria-label={`Delete ${mission.filename}`}
+                >
+                  Delete
+                </Button>
               </div>
-            </Card>
+            </div>
           ))}
         </div>
       ) : (
