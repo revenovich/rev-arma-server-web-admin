@@ -44,4 +44,25 @@ jspm_packages
 
 # Project stuff
 config.js
+config.json
 servers.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.env
+*.egg-info/
+dist/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# Frontend build
+frontend/dist/
+frontend/node_modules/
