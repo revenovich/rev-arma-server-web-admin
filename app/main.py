@@ -100,3 +100,8 @@ def _mount_frontend(app: FastAPI) -> None:
             return JSONResponse(
                 {"status": "ok", "message": "Frontend not built. Run: cd frontend && npm run build"}
             )
+
+
+# Module-level app instance so `uvicorn app.main:app` works without --factory.
+# For custom config paths, use `uvicorn app.main:create_app --factory`.
+app = create_app()
