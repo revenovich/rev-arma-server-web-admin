@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 
-class GameType(StrEnum):
+class GameType(str, Enum):
     ARMA3 = "arma3"
     ARMA3_X64 = "arma3_x64"
     ARMA2OA = "arma2oa"

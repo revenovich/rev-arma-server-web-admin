@@ -43,7 +43,7 @@ See `PLAN.md` for the full step checklist and all architectural decisions.
 ### Run the dev server
 
 ```bash
-# Install deps (first time) — requires Python 3.12+
+# Install deps (first time) — requires Python 3.9+
 pip install -e .
 # OR with uv: uv sync
 
