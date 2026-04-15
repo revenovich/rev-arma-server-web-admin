@@ -1,7 +1,7 @@
 """Schema validation and serialisation tests."""
 from __future__ import annotations
 
-from datetime import UTC
+from datetime import timezone
 
 from app.schemas.preset import Comparison, MissingMod, MissingReport, ModEntry, Preset, PresetGroup
 from app.schemas.server import ServerSchema
@@ -74,7 +74,7 @@ def test_missing_report_serialisation() -> None:
     from datetime import datetime
 
     report = MissingReport(
-        generated_at=datetime.now(tz=UTC),
+        generated_at=datetime.now(tz=timezone.utc),
         total_mods=10,
         on_server=8,
         missing=2,

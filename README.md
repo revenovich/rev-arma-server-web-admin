@@ -2,7 +2,7 @@
 
 A web-based admin panel for Arma Dedicated Servers. Manage multiple server instances, monitor live status, upload missions, handle mods, and stream server logs — all from a single UI.
 
-> **Branch note**: This is the `python-rewrite` branch. The backend has been rewritten from Node.js/Express to **Python 3.12 + FastAPI**. The frontend is now **React 18 + Vite + TypeScript + Tailwind CSS v4 + shadcn/ui**. The `master` branch (original Node.js app) is unchanged and still deployable.
+> **Branch note**: This is the `python-rewrite` branch. The backend has been rewritten from Node.js/Express to **Python 3.9+ FastAPI**. The frontend is now **React 18 + Vite + TypeScript + Tailwind CSS v4 + shadcn/ui**. The `master` branch (original Node.js app) is unchanged and still deployable.
 
 ---
 
@@ -49,7 +49,7 @@ A web-based admin panel for Arma Dedicated Servers. Manage multiple server insta
 
 | Dependency | Minimum Version | Notes |
 |------------|-----------------|-------|
-| Python | **3.12** | Required. 3.11 will NOT work. |
+| Python | **3.9** | Required. 3.8 will NOT work. |
 | Node.js | **18** | For the frontend build only |
 | npm | **9** | Bundled with Node.js 18 |
 | pip / uv | any recent | For Python package management |
@@ -386,7 +386,7 @@ The `path` config key (and `ARMA_PATH` env var) must be an **absolute path** to 
 
 ### Python Version
 
-The app requires **Python 3.12 or newer**. Python 3.11 will fail at import time due to use of `type` statement syntax and other 3.12+ features.
+The app requires **Python 3.9 or newer**.
 
 ---
 
@@ -402,7 +402,7 @@ The app requires **Python 3.12 or newer**. Python 3.11 will fail at import time 
 | `429 Too Many Requests` on login | IP brute-force lockout triggered | Wait 60 seconds or restart the backend |
 | Mod download endpoints return 400 | `caddy.base_url` not set | Configure Caddy integration or ignore these features |
 | Frontend shows no data | Backend not running or CORS issue | Ensure `uvicorn` is running on port 8000 |
-| `ModuleNotFoundError` on startup | Python 3.11 or older | Upgrade to Python 3.12+ |
+| `ModuleNotFoundError` on startup | Python 3.8 or older | Upgrade to Python 3.9+ |
 
 ---
 

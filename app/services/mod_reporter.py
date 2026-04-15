@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from app.schemas.preset import Comparison, MissingMod, MissingReport
@@ -40,7 +40,7 @@ def build_missing_report(
             )
 
     return MissingReport(
-        generated_at=datetime.now(tz=UTC),
+        generated_at=datetime.now(tz=timezone.utc),
         total_mods=len(all_mods),
         on_server=on_server,
         missing=len(missing_mods),
