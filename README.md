@@ -47,12 +47,14 @@ A web-based admin panel for Arma Dedicated Servers. Manage multiple server insta
 
 ## Requirements
 
-| Dependency | Minimum Version | Notes |
-|------------|-----------------|-------|
-| Python | **3.9** | Required. 3.8 will NOT work. |
-| Node.js | **18** | For the frontend build only |
-| npm | **9** | Bundled with Node.js 18 |
-| pip / uv | any recent | For Python package management |
+| Dependency | Minimum Version | Recommended | Notes |
+|------------|-----------------|-------------|-------|
+| Python | **3.9** | 3.12 | Required. 3.8 will NOT work. |
+| Node.js | **18** | **20 LTS** | Frontend build only. **Node 14/16 will NOT work** — many deps require >= 18. |
+| npm | **9** | 10 | Bundled with Node.js 18+ |
+| pip / uv | any recent | uv | For Python package management |
+
+> **Windows Server 2016 users**: Node.js 14.x (bundled with some older installs) is NOT supported. Install Node.js 20 LTS from https://nodejs.org/ before running `npm install`. Node.js 20 runs fine on Windows Server 2016.
 
 ---
 
