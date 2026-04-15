@@ -1,8 +1,28 @@
 import { useParams, useLocation, useNavigate, Outlet } from "react-router-dom";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Play, Square, Copy, Trash2, Loader2, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useServer } from "@/hooks/useServers";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { StatusDot } from "@/components/servers/StatusDot";
+import {
+  useServer,
+  useStartServer,
+  useStopServer,
+  useCreateServer,
+  useDeleteServer,
+} from "@/hooks/useServers";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -25,11 +45,34 @@ export function ServerDetailScreen() {
   const navigate = useNavigate();
   const { data: server, isLoading, error } = useServer(id ?? "");
 
+  const { mutate: startServer, isPending: isStarting } = useStartServer(id ?? "");
+  const { mutate: stopServer, isPending: isStopping } = useStopServer(id ?? "");
+  const { mutate: createServer, isPending: isCloning } = useCreateServer();
+  const { mutate: deleteServer, isPending: isDeleting } = useDeleteServer();
+
   const pathSegments = location.pathname.split("/");
   const currentTab = (pathSegments[3] as ServerTab) ?? "info";
 
+  const online = server?.state?.online ?? false;
+  const players = server?.state?.players ?? 0;
+  const maxPlayers = server?.state?.maxPlayers ?? server?.max_players ?? 0;
+
   function handleTabChange(value: string) {
     navigate(`/servers/${id}/${value}`);
+  }
+
+  function handleClone() {
+    if (!server) return;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id: _id, pid: _pid, state: _state, ...rest } = server;
+    createServer({ ...rest, title: `Copy of ${server.title}` });
+  }
+
+  function handleDelete() {
+    if (!id) return;
+    deleteServer(id, {
+      onSuccess: () => navigate("/"),
+    });
   }
 
   if (error) {
@@ -50,17 +93,122 @@ export function ServerDetailScreen() {
       <div className="flex items-center gap-3">
         <Link
           to="/"
-          className="glass flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
+          className="glass flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
           aria-label="Back to servers"
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        {isLoading ? (
-          <Skeleton className="h-8 w-48" />
-        ) : (
-          <h1 className="text-2xl font-bold tracking-tight gradient-heading">
-            {server?.title ?? "Server"}
-          </h1>
+
+        {/* Title + status */}
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          {isLoading ? (
+            <Skeleton className="h-8 w-48" />
+          ) : (
+            <>
+              <h1 className="truncate text-2xl font-bold tracking-tight gradient-heading">
+                {server?.title ?? "Server"}
+              </h1>
+              {server && (
+                <StatusDot online={online} />
+              )}
+              {online && (
+                <Badge variant="secondary" className="shrink-0 font-mono text-xs">
+                  <Users className="mr-1 h-3 w-3" />
+                  {players}/{maxPlayers}
+                </Badge>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Action buttons */}
+        {!isLoading && server && (
+          <div className="flex shrink-0 items-center gap-1.5">
+            {/* Start / Stop */}
+            {online ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Stop server"
+                disabled={isStopping}
+                onClick={() => stopServer()}
+                className="gap-1.5 text-danger hover:bg-danger/10 hover:text-danger"
+              >
+                {isStopping ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Square className="h-4 w-4" />
+                )}
+                Stop
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Start server"
+                disabled={isStarting}
+                onClick={() => startServer()}
+                className="gap-1.5 text-success hover:bg-success/10 hover:text-success"
+              >
+                {isStarting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                Start
+              </Button>
+            )}
+
+            {/* Clone */}
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Clone server"
+              disabled={isCloning}
+              onClick={handleClone}
+              className="gap-1.5 text-muted-foreground hover:text-foreground"
+            >
+              {isCloning ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Copy className="h-4 w-4" />
+              )}
+              Clone
+            </Button>
+
+            {/* Delete */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Delete server"
+                  className="gap-1.5 text-muted-foreground hover:bg-danger/10 hover:text-danger"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent size="sm">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete server?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently remove <strong>{server.title}</strong> and its configuration. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    disabled={isDeleting}
+                    onClick={handleDelete}
+                  >
+                    {isDeleting ? "Deleting…" : "Delete"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         )}
       </div>
 

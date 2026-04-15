@@ -1,6 +1,6 @@
 import { Server } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { ServerCard } from "@/components/servers/ServerCard";
+import { AddServerDialog } from "@/components/servers/AddServerDialog";
 import { useServers } from "@/hooks/useServers";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -39,7 +39,7 @@ export function OverviewScreen() {
         <h1 className="text-2xl font-bold tracking-tight gradient-heading">
           Servers
         </h1>
-        <Button size="sm">Add Server</Button>
+        <AddServerDialog />
       </div>
 
       {hasServers ? (
@@ -59,7 +59,7 @@ export function OverviewScreen() {
               Add your first Arma server to get started.
             </p>
           </div>
-          <Button size="sm">Add Server</Button>
+          <AddServerDialog />
         </div>
       )}
     </div>

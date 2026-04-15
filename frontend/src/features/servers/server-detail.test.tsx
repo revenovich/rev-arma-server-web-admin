@@ -5,6 +5,23 @@ import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import type { Server } from "@/types/api";
 import { ServerDetailScreen } from "./ServerDetailScreen";
 
+const mockStartMutate = vi.fn();
+const mockStopMutate = vi.fn();
+const mockCloneMutate = vi.fn();
+const mockDeleteMutate = vi.fn();
+
+vi.mock("@/hooks/useServers", () => ({
+  useServer: vi.fn((id: string) => ({
+    data: id === "online-server" ? ONLINE_SERVER : MOCK_SERVER,
+    isLoading: false,
+    error: null,
+  })),
+  useStartServer: vi.fn(() => ({ mutate: mockStartMutate, isPending: false })),
+  useStopServer: vi.fn(() => ({ mutate: mockStopMutate, isPending: false })),
+  useCreateServer: vi.fn(() => ({ mutate: mockCloneMutate, isPending: false })),
+  useDeleteServer: vi.fn(() => ({ mutate: mockDeleteMutate, isPending: false })),
+}));
+
 const MOCK_SERVER: Server = {
   id: "my-server",
   title: "My Arma Server",
@@ -30,6 +47,14 @@ const MOCK_SERVER: Server = {
   state: null,
 };
 
+const ONLINE_SERVER: Server = {
+  ...MOCK_SERVER,
+  id: "online-server",
+  title: "Online Server",
+  pid: 999,
+  state: { online: true, players: 10, maxPlayers: 32, mission: "co_10.invasion", map: "Stratis" },
+};
+
 function createTestQueryClient() {
   return new QueryClient({
     defaultOptions: {
@@ -41,22 +66,6 @@ function createTestQueryClient() {
 
 function renderDetail(path = "/servers/my-server/info") {
   const queryClient = createTestQueryClient();
-
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockImplementation((input: string | Request) => {
-      const url = typeof input === "string" ? input : input.url;
-      if (url.includes("/api/servers/my-server")) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(MOCK_SERVER),
-        });
-      }
-      return Promise.resolve({ ok: true, json: () => Promise.resolve(null) });
-    }),
-  );
-
   const router = createMemoryRouter(
     [
       {
@@ -87,21 +96,17 @@ function renderDetail(path = "/servers/my-server/info") {
 
 describe("ServerDetailScreen", () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
-  it("renders server title after loading", async () => {
+  it("renders server title", () => {
     renderDetail();
-    await waitFor(() => {
-      expect(screen.getByText("My Arma Server")).toBeInTheDocument();
-    });
+    expect(screen.getByText("My Arma Server")).toBeInTheDocument();
   });
 
-  it("renders all tab triggers", async () => {
+  it("renders all tab triggers", () => {
     renderDetail();
-    await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "Info" })).toBeInTheDocument();
-    });
+    expect(screen.getByRole("tab", { name: "Info" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Missions" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Mods" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Difficulty" })).toBeInTheDocument();
@@ -111,27 +116,47 @@ describe("ServerDetailScreen", () => {
     expect(screen.getByRole("tab", { name: "Headless" })).toBeInTheDocument();
   });
 
-  it("renders back link to servers overview", async () => {
+  it("renders back link to servers overview", () => {
     renderDetail();
-    await waitFor(() => {
-      expect(screen.getByLabelText("Back to servers")).toBeInTheDocument();
-    });
     expect(screen.getByLabelText("Back to servers")).toHaveAttribute("href", "/");
   });
 
-  it("shows Info tab as active by default", async () => {
+  it("shows Info tab as active by default", () => {
     renderDetail();
-    await waitFor(() => {
-      const infoTab = screen.getByRole("tab", { name: "Info" });
-      expect(infoTab).toHaveAttribute("data-active");
-    });
+    const infoTab = screen.getByRole("tab", { name: "Info" });
+    expect(infoTab).toHaveAttribute("data-active");
   });
 
-  it("shows Difficulty tab as active when navigated to it", async () => {
+  it("shows Difficulty tab as active when navigated to it", () => {
     renderDetail("/servers/my-server/difficulty");
-    await waitFor(() => {
-      const diffTab = screen.getByRole("tab", { name: "Difficulty" });
-      expect(diffTab).toHaveAttribute("data-active");
-    });
+    const diffTab = screen.getByRole("tab", { name: "Difficulty" });
+    expect(diffTab).toHaveAttribute("data-active");
+  });
+
+  // ── NEW: header controls ─────────────────────────────────────────────────
+
+  it("renders Start button when server is offline", () => {
+    renderDetail("/servers/my-server/info");
+    expect(screen.getByRole("button", { name: /start server/i })).toBeInTheDocument();
+  });
+
+  it("renders Stop button when server is online", () => {
+    renderDetail("/servers/online-server/info");
+    expect(screen.getByRole("button", { name: /stop server/i })).toBeInTheDocument();
+  });
+
+  it("renders Clone button", () => {
+    renderDetail();
+    expect(screen.getByRole("button", { name: /clone/i })).toBeInTheDocument();
+  });
+
+  it("renders Delete button", () => {
+    renderDetail();
+    expect(screen.getByRole("button", { name: /delete server/i })).toBeInTheDocument();
+  });
+
+  it("shows player count in header", () => {
+    renderDetail("/servers/online-server/info");
+    expect(screen.getByText("10/32")).toBeInTheDocument();
   });
 });

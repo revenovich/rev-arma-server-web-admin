@@ -1,8 +1,20 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
-import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, X, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,20 +25,41 @@ import { useServer, useUpdateServer } from "@/hooks/useServers";
 import { useMissions } from "@/hooks/useMissions";
 import type { ServerUpdatePayload } from "@/types/api";
 
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+const DIFFICULTY_OPTIONS = ["Recruit", "Regular", "Veteran", "Custom"] as const;
+type Difficulty = (typeof DIFFICULTY_OPTIONS)[number];
+
+interface MissionEntry {
+  template: string;
+  difficulty: Difficulty;
 }
 
-function SortableItem({ id, onRemove }: { id: string; onRemove: (id: string) => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
+function parseMissions(raw: unknown[]): MissionEntry[] {
+  return raw.map((m) => {
+    if (typeof m === "string") return { template: m, difficulty: "Regular" };
+    if (typeof m === "object" && m !== null) {
+      const obj = m as Record<string, unknown>;
+      return {
+        template: String(obj.template ?? obj.missionName ?? m),
+        difficulty: (DIFFICULTY_OPTIONS as readonly string[]).includes(String(obj.difficulty))
+          ? (obj.difficulty as Difficulty)
+          : "Regular",
+      };
+    }
+    return { template: String(m), difficulty: "Regular" };
+  });
+}
+
+interface SortableItemProps {
+  entry: MissionEntry;
+  onRemove: (template: string) => void;
+  onDifficultyChange: (template: string, difficulty: Difficulty) => void;
+}
+
+function SortableItem({ entry, onRemove, onDifficultyChange }: SortableItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: entry.template,
+  });
+  const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
     <div
@@ -34,15 +67,33 @@ function SortableItem({ id, onRemove }: { id: string; onRemove: (id: string) => 
       style={style}
       className="glass flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm"
     >
-      <button {...attributes} {...listeners} className="cursor-grab text-muted-foreground hover:text-foreground" aria-label="Drag to reorder">
+      <button
+        {...attributes}
+        {...listeners}
+        className="cursor-grab text-muted-foreground hover:text-foreground"
+        aria-label="Drag to reorder"
+        type="button"
+      >
         <GripVertical className="h-4 w-4" />
       </button>
-      <span className="flex-1 truncate font-mono">{id}</span>
+      <span className="flex-1 truncate font-mono">{entry.template}</span>
+      <select
+        value={entry.difficulty}
+        onChange={(e) => onDifficultyChange(entry.template, e.target.value as Difficulty)}
+        className="h-7 rounded-md border border-input bg-transparent px-2 text-xs focus-visible:border-ring focus-visible:outline-none"
+        aria-label={`Difficulty for ${entry.template}`}
+      >
+        {DIFFICULTY_OPTIONS.map((d) => (
+          <option key={d} value={d}>
+            {d}
+          </option>
+        ))}
+      </select>
       <button
         type="button"
-        onClick={() => onRemove(id)}
+        onClick={() => onRemove(entry.template)}
         className="text-muted-foreground hover:text-danger"
-        aria-label={`Remove ${id}`}
+        aria-label={`Remove ${entry.template}`}
       >
         <X className="h-4 w-4" />
       </button>
@@ -52,24 +103,19 @@ function SortableItem({ id, onRemove }: { id: string; onRemove: (id: string) => 
 
 export function MissionsTab() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
   const { data: server, isLoading } = useServer(id ?? "");
   const updateServer = useUpdateServer(id ?? "");
   const { data: availableMissions, isLoading: missionsLoading } = useMissions();
 
-  // Rotation list state
-  const [rotation, setRotation] = useState<string[]>([]);
+  const [rotation, setRotation] = useState<MissionEntry[]>([]);
   const [rotationInitialized, setRotationInitialized] = useState(false);
 
-  // Sync rotation from server data
   if (server && !rotationInitialized) {
-    const serverMissions = (server.missions ?? []).map((m: unknown) =>
-      typeof m === "string" ? m : (m as { missionName?: string }).missionName ?? String(m),
-    );
-    setRotation(serverMissions);
+    setRotation(parseMissions(server.missions ?? []));
     setRotationInitialized(true);
   }
 
-  // Toggles
   const [autoSelectMission, setAutoSelectMission] = useState(false);
   const [randomMissionOrder, setRandomMissionOrder] = useState(false);
 
@@ -81,19 +127,29 @@ export function MissionsTab() {
     const { active, over } = event;
     if (over && active.id !== over.id) {
       setRotation((prev) => {
-        const oldIndex = prev.indexOf(String(active.id));
-        const newIndex = prev.indexOf(String(over.id));
+        const oldIndex = prev.findIndex((m) => m.template === String(active.id));
+        const newIndex = prev.findIndex((m) => m.template === String(over.id));
         return arrayMove(prev, oldIndex, newIndex);
       });
     }
   }
 
-  function handleRemoveFromRotation(missionName: string) {
-    setRotation((prev) => prev.filter((m) => m !== missionName));
+  function handleRemoveFromRotation(template: string) {
+    setRotation((prev) => prev.filter((m) => m.template !== template));
   }
 
-  function handleAddToRotation(missionName: string) {
-    setRotation((prev) => [...prev, missionName]);
+  function handleAddToRotation(template: string) {
+    setRotation((prev) => [...prev, { template, difficulty: "Regular" }]);
+  }
+
+  function handleDifficultyChange(template: string, difficulty: Difficulty) {
+    setRotation((prev) =>
+      prev.map((m) => (m.template === template ? { ...m, difficulty } : m)),
+    );
+  }
+
+  function handleRefresh() {
+    void queryClient.invalidateQueries({ queryKey: ["missions"] });
   }
 
   async function handleSave() {
@@ -115,7 +171,7 @@ export function MissionsTab() {
     );
   }
 
-  const rotationSet = new Set(rotation);
+  const rotationTemplates = new Set(rotation.map((m) => m.template));
 
   return (
     <div className="space-y-6">
@@ -124,7 +180,9 @@ export function MissionsTab() {
         <h3 className="section-label">Mission Settings</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex items-center justify-between gap-3">
-            <label id="auto-select-label" htmlFor="autoSelectMission" className="text-sm">Auto Select Mission</label>
+            <label id="auto-select-label" htmlFor="autoSelectMission" className="text-sm">
+              Auto Select Mission
+            </label>
             <Switch
               id="autoSelectMission"
               aria-labelledby="auto-select-label"
@@ -133,7 +191,9 @@ export function MissionsTab() {
             />
           </div>
           <div className="flex items-center justify-between gap-3">
-            <label id="random-order-label" htmlFor="randomMissionOrder" className="text-sm">Random Mission Order</label>
+            <label id="random-order-label" htmlFor="randomMissionOrder" className="text-sm">
+              Random Mission Order
+            </label>
             <Switch
               id="randomMissionOrder"
               aria-labelledby="random-order-label"
@@ -148,16 +208,26 @@ export function MissionsTab() {
       <Card className="space-y-4 p-5">
         <h3 className="section-label">Mission Rotation</h3>
         {rotation.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No missions in rotation. Add missions from the available list.</p>
+          <p className="text-sm text-muted-foreground">
+            No missions in rotation. Add missions from the available list below.
+          </p>
         ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={rotation} strategy={verticalListSortingStrategy}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={rotation.map((m) => m.template)}
+              strategy={verticalListSortingStrategy}
+            >
               <div className="space-y-2">
-                {rotation.map((mission) => (
+                {rotation.map((entry) => (
                   <SortableItem
-                    key={mission}
-                    id={mission}
+                    key={entry.template}
+                    entry={entry}
                     onRemove={handleRemoveFromRotation}
+                    onDifficultyChange={handleDifficultyChange}
                   />
                 ))}
               </div>
@@ -170,7 +240,7 @@ export function MissionsTab() {
       <Card className="space-y-4 p-5">
         <div className="flex items-center justify-between">
           <h3 className="section-label">Available Missions</h3>
-          <Button variant="secondary" size="sm">
+          <Button variant="secondary" size="sm" onClick={handleRefresh} aria-label="Refresh missions">
             <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
             Refresh
           </Button>
@@ -184,7 +254,7 @@ export function MissionsTab() {
         ) : availableMissions && availableMissions.length > 0 ? (
           <div className="max-h-60 space-y-1 overflow-y-auto">
             {availableMissions
-              .filter((m) => !rotationSet.has(m.name))
+              .filter((m) => !rotationTemplates.has(m.name))
               .map((m) => (
                 <button
                   key={m.name}
@@ -193,19 +263,23 @@ export function MissionsTab() {
                   className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-colors hover:bg-white/10"
                 >
                   <span className="truncate font-mono">{m.name}</span>
-                  <span className="text-xs text-muted-foreground">{formatBytes(m.size)}</span>
+                  <span className="ml-2 shrink-0 text-xs text-muted-foreground">
+                    {m.worldName} · {m.sizeFormatted}
+                  </span>
                 </button>
               ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No mission files found. Upload .pbo files to the missions directory.</p>
+          <p className="text-sm text-muted-foreground">
+            No mission files found. Upload .pbo files to the missions directory.
+          </p>
         )}
       </Card>
 
       {/* Save */}
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={updateServer.isPending}>
-          {updateServer.isPending ? "Saving..." : "Save Changes"}
+          {updateServer.isPending ? "Saving…" : "Save Changes"}
         </Button>
       </div>
     </div>

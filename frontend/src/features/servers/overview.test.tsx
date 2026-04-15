@@ -144,13 +144,14 @@ describe("OverviewScreen", () => {
     });
   });
 
-  it("shows Running for online servers and Stopped for offline", async () => {
+  it("shows Stop button for online servers and Start button for offline", async () => {
     renderOverview();
 
     await waitFor(() => {
-      expect(screen.getByText("Running")).toBeInTheDocument();
+      // Online server has a Stop button; offline has a Start button
+      expect(screen.getByRole("button", { name: /stop server/i })).toBeInTheDocument();
     });
-    expect(screen.getByText("Stopped")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /start server/i })).toBeInTheDocument();
   });
 
   it("shows Persistent badge for persistent servers", async () => {
