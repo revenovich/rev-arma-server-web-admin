@@ -12,7 +12,7 @@ const SERVERS_KEY = ["servers"] as const;
 export function useServers() {
   return useQuery<Server[]>({
     queryKey: SERVERS_KEY,
-    queryFn: () => api.get<Server[]>("/servers"),
+    queryFn: () => api.get<Server[]>("/servers/"),
   });
 }
 

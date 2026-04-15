@@ -48,7 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const { username, password } = JSON.parse(stored);
           api.setAuth(username, password);
-          await api.get("/servers");
+          // Use trailing slash to avoid 307 redirect which may strip Authorization header
+          await api.get("/servers/");
           setIsAuthenticated(true);
         } catch {
           // Stored credentials are invalid or expired
@@ -70,21 +71,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (username: string, password: string) => {
-    api.setAuth(username, password);
     try {
-      await api.get("/servers");
+      api.setAuth(username, password);
+      // Use trailing slash to hit the route directly — avoids the 307 redirect
+      // from /api/servers → /api/servers/ which may strip the Authorization header
+      await api.get("/servers/");
       sessionStorage.setItem(AUTH_KEY, JSON.stringify({ username, password }));
       setIsAuthenticated(true);
       setAuthRequired(true);
     } catch (err) {
       api.clearAuth();
-      if (err instanceof ApiError && err.status === 401) {
-        throw new Error("Invalid username or password");
+      if (err instanceof ApiError) {
+        if (err.status === 401) throw new Error("Invalid username or password");
+        if (err.status === 429) throw new Error("Too many failed attempts — try again later");
+        throw new Error(`Server returned ${err.status} — check server logs`);
       }
-      if (err instanceof ApiError && err.status === 429) {
-        throw new Error("Too many failed attempts — try again later");
-      }
-      throw new Error("Connection failed — is the server running?");
+      throw new Error("Cannot reach server — is it running on the correct port?");
     }
   }, []);
 
