@@ -89,26 +89,33 @@ export type ServerUpdatePayload = Partial<ServerCreatePayload>;
 
 export interface Mod {
   name: string;
-  path: string;
   size: number;
-  steamId: string | null;
-  lastModified: string;
+  formattedSize: string;
+  modFile: unknown | null;
+  steamMeta: unknown | null;
 }
 
 // ─── Mission ────────────────────────────────────────────────────────────────
 
 export interface Mission {
-  filename: string;
+  name: string;          // full filename e.g. "co_10_escape.malden.pbo"
+  missionName: string;   // e.g. "co_10_escape"
+  worldName: string;     // e.g. "malden"
   size: number;
-  lastModified: string;
+  sizeFormatted: string;
+  dateCreated: string;
+  dateModified: string;
 }
 
 // ─── Log ────────────────────────────────────────────────────────────────────
 
 export interface LogEntry {
-  filename: string;
+  name: string;
+  path: string;
   size: number;
-  lastModified: string;
+  formattedSize: string;
+  created: string;
+  modified: string;
 }
 
 // ─── Settings ───────────────────────────────────────────────────────────────

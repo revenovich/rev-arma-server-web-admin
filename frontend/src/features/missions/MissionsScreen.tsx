@@ -2,17 +2,10 @@ import { Map, Upload, RefreshCw } from "lucide-react";
 import { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMissions, useDeleteMission, useRefreshMissions } from "@/hooks/useMissions";
 import { cn } from "@/lib/utils";
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
-}
 
 export function MissionsScreen() {
   const { data: missions, isLoading, error } = useMissions();
@@ -84,20 +77,27 @@ export function MissionsScreen() {
         <div className="space-y-2">
           {missions.map((mission) => (
             <div
-              key={mission.filename}
+              key={mission.name}
               className="flex items-center gap-3 rounded-lg bg-surface px-4 py-3 transition-colors hover:bg-surface-raised"
             >
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-text">{mission.filename}</p>
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-medium text-text">{mission.missionName}</p>
+                  {mission.worldName && (
+                    <Badge className="shrink-0 bg-surface-raised text-muted-foreground border-border text-[10px] px-1.5 py-0">
+                      {mission.worldName}
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {formatBytes(mission.size)} — {mission.lastModified}
+                  {mission.sizeFormatted} — {mission.dateModified}
                 </p>
               </div>
               <div className="flex shrink-0 gap-2">
                 <a
-                  href={`/api/missions/${mission.filename}`}
+                  href={`/api/missions/${mission.name}`}
                   download
-                  aria-label={`Download ${mission.filename}`}
+                  aria-label={`Download ${mission.name}`}
                   className={cn(
                     buttonVariants({ size: "sm" }),
                     "bg-accent/20 border border-accent/40 text-accent hover:bg-accent hover:text-white hover:border-transparent text-xs transition-colors"
@@ -108,7 +108,7 @@ export function MissionsScreen() {
                 <Button
                   size="sm"
                   className="bg-danger/90 text-white hover:bg-danger border-transparent text-xs"
-                  onClick={() => deleteMission.mutate(mission.filename)}
+                  onClick={() => deleteMission.mutate(mission.name)}
                   disabled={deleteMission.isPending}
                 >
                   Delete

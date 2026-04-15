@@ -15,7 +15,7 @@ export function useMissions() {
 export function useDeleteMission() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, string>({
-    mutationFn: (filename) => api.del(`/missions/${filename}`),
+    mutationFn: (name) => api.del(`/missions/${name}`),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: MISSIONS_KEY });
       toast.success("Mission deleted");

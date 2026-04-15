@@ -1,6 +1,5 @@
 import { Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMods } from "@/hooks/useMods";
 
@@ -47,15 +46,8 @@ export function ModsScreen() {
               className="flex items-center gap-3 rounded-lg bg-surface px-4 py-3 transition-colors hover:bg-surface-raised"
             >
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="truncate text-sm font-medium text-text">{mod.name}</span>
-                  {mod.steamId && (
-                    <Badge className="shrink-0 bg-accent/15 text-accent border-accent/30 text-[10px] px-1.5 py-0">
-                      Steam
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">{formatBytes(mod.size)}</p>
+                <p className="truncate text-sm font-medium text-text">{mod.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{mod.formattedSize}</p>
               </div>
               <Button
                 size="sm"
@@ -82,12 +74,4 @@ export function ModsScreen() {
       )}
     </div>
   );
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
 }

@@ -184,15 +184,15 @@ export function MissionsTab() {
         ) : availableMissions && availableMissions.length > 0 ? (
           <div className="max-h-60 space-y-1 overflow-y-auto">
             {availableMissions
-              .filter((m) => !rotationSet.has(m.filename))
+              .filter((m) => !rotationSet.has(m.name))
               .map((m) => (
                 <button
-                  key={m.filename}
+                  key={m.name}
                   type="button"
-                  onClick={() => handleAddToRotation(m.filename)}
+                  onClick={() => handleAddToRotation(m.name)}
                   className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-surface-raised"
                 >
-                  <span className="truncate font-mono">{m.filename}</span>
+                  <span className="truncate font-mono">{m.name}</span>
                   <span className="text-xs text-muted-foreground">{formatBytes(m.size)}</span>
                 </button>
               ))}

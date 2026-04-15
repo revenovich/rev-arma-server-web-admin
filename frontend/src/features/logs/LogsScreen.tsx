@@ -20,8 +20,8 @@ export function LogsScreen() {
   const [deletingFile, setDeletingFile] = useState<string | null>(null);
 
   const deleteLog = useMutation({
-    mutationFn: (filename: string) => api.del(`/logs/${filename}`),
-    onMutate: (filename) => setDeletingFile(filename),
+    mutationFn: (name: string) => api.del(`/logs/${name}`),
+    onMutate: (name) => setDeletingFile(name),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: LOGS_KEY });
       toast.success("Log deleted");
@@ -54,18 +54,20 @@ export function LogsScreen() {
         <div className="space-y-2">
           {logs.map((log) => (
             <div
-              key={log.filename}
+              key={log.name}
               className="flex items-center gap-3 rounded-lg bg-surface px-4 py-3 transition-colors hover:bg-surface-raised"
             >
               <div className="min-w-0 flex-1">
-                <p className="truncate font-mono text-sm font-medium text-text">{log.filename}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{log.lastModified}</p>
+                <p className="truncate font-mono text-sm font-medium text-text">{log.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {log.formattedSize} — {log.modified}
+                </p>
               </div>
               <div className="flex shrink-0 gap-2">
                 <a
-                  href={`/api/logs/${log.filename}/download`}
+                  href={`/api/logs/${log.name}/download`}
                   download
-                  aria-label={`Download ${log.filename}`}
+                  aria-label={`Download ${log.name}`}
                   className={cn(
                     buttonVariants({ size: "sm" }),
                     "bg-accent/20 border border-accent/40 text-accent hover:bg-accent hover:text-white hover:border-transparent text-xs transition-colors"
@@ -76,8 +78,8 @@ export function LogsScreen() {
                 <Button
                   size="sm"
                   className="bg-danger/90 text-white hover:bg-danger border-transparent text-xs"
-                  onClick={() => deleteLog.mutate(log.filename)}
-                  disabled={deletingFile === log.filename}
+                  onClick={() => deleteLog.mutate(log.name)}
+                  disabled={deletingFile === log.name}
                 >
                   Delete
                 </Button>
