@@ -193,15 +193,17 @@ export interface ServerConfig {
 // ─── Preset ─────────────────────────────────────────────────────────────────
 
 export interface Preset {
-  id: string;
-  name: string;
+  preset_name: string;
+  source_file: string;
+  mod_count: number;
   mods: PresetMod[];
 }
 
 export interface PresetMod {
   name: string;
-  steamId: string | null;
-  directoryName: string;
+  source: string;
+  url: string | null;
+  steam_id: string | null;
 }
 
 export interface Comparison {

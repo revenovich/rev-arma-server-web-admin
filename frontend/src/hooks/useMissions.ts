@@ -53,3 +53,25 @@ export function useWorkshopDownload() {
     },
   });
 }
+
+interface UploadResult {
+  uploaded: string[];
+}
+
+export function useUploadMissions() {
+  const queryClient = useQueryClient();
+  return useMutation<UploadResult, Error, File[]>({
+    mutationFn: (files) => {
+      const formData = new FormData();
+      files.forEach((file) => formData.append("files", file));
+      return api.upload<UploadResult>("/missions/", formData);
+    },
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: MISSIONS_KEY });
+      toast.success(`${data.uploaded.length} mission${data.uploaded.length === 1 ? "" : "s"} uploaded`);
+    },
+    onError: () => {
+      toast.error("Failed to upload missions");
+    },
+  });
+}

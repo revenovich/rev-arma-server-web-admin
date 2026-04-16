@@ -5,15 +5,15 @@ This file provides guidance to Claude Code when working with code in this reposi
 ## Branch context
 
 **Active branch**: `master` — Node.js/Express + Backbone.js fully replaced by FastAPI + React 18/Vite/TypeScript.
-**Phase status**: ALL 5 PHASES COMPLETE ✅ (288 backend tests passing, 3 skipped; 154 frontend Vitest tests; 75 E2E Playwright tests; 80.03% backend coverage).
+**Phase status**: ALL 5 PHASES COMPLETE ✅ (338 backend tests passing, 3 skipped; 447 frontend Vitest tests; 75 E2E Playwright tests; 80.03% backend coverage; 85.98% frontend line coverage).
 See `PLAN.md` for the full step checklist and all architectural decisions.
 
-## Current state (as of 2026-04-15)
+## Current state (as of 2026-04-16)
 
 - Backend: FastAPI on port 9500, all routes implemented and tested.
 - Frontend: React 18 + Vite on port 9510 (dev), served from `frontend/dist/` (prod).
-- Tests: 288 backend tests pass (`python -m pytest tests/ -q`), 3 skipped (Linux symlink tests on Windows); 154 frontend Vitest tests pass.
-- Coverage: 80.03% (`fail_under = 80` enforced via `pyproject.toml`).
+- Tests: 338 backend tests pass (`python -m pytest tests/ -q`), 3 skipped (Linux symlink tests on Windows); 447 frontend Vitest tests pass (`cd frontend && npx vitest run`).
+- Coverage: 80.03% backend (`fail_under = 80` enforced via `pyproject.toml`); 85.98% frontend line coverage.
 - Auth: Custom login screen with dedicated `GET /api/auth` probe endpoint (no credentials needed).
 - Theme: Dark mode is the **CSS default** — no class or JS required. Light mode only when `.light` is on `<html>`.
 - UI: Iris glassmorphism design with animated gradient background, translucent glass surfaces, framer-motion page transitions, and mobile hamburger sidebar.
@@ -23,7 +23,7 @@ See `PLAN.md` for the full step checklist and all architectural decisions.
 
 - **Bug fix**: Read the relevant file(s) first. Run `python -m pytest tests/ -q` before and after to confirm no regressions. Check coverage hasn't dropped below 80%.
 - **New feature**: Follow PLAN.md architectural decisions. Write tests first (TDD). Update this file and PLAN.md with what changed.
-- **Frontend change**: Run `cd frontend && npm run typecheck && npm run lint` after edits. For UI changes, start dev server and test in browser.
+- **Frontend change**: Run `cd frontend && npm run typecheck && npm run lint` after edits. For UI changes, start dev server and test in browser. Run `cd frontend && npx vitest run` to verify tests.
 - **New API route**: Add to `app/api/`, add integration test in `tests/backend/integration/`, re-check coverage.
 - **After any frontend change on the server**: `cd frontend && npm run build` then restart the Python server.
 
@@ -212,8 +212,9 @@ npm run dev          # Vite dev server on :9510 (proxies /api + /ws to :9500)
 npm run build        # Production build → frontend/dist/
 npm run typecheck    # tsc --noEmit
 npm run lint         # eslint
-npm run test         # Vitest (94 tests)
+npm run test         # Vitest (447 tests)
 npm run test:watch   # Vitest watch mode
+npm run test:coverage # Vitest with v8 coverage report
 npm run gen:types    # openapi-typescript → src/types/api.ts (backend must be running)
 ```
 
@@ -236,8 +237,9 @@ frontend/src/
 ├── hooks/
 │   ├── useTheme.ts            # React hook wrapping theme.ts
 │   ├── useServers.ts          # TanStack Query CRUD + start/stop + toast notifications
-│   ├── useMissions.ts         # Mission list, delete, refresh, workshop + toast
+│   ├── useMissions.ts         # Mission list, delete, refresh, workshop, upload + toast
 │   ├── useMods.ts             # Mod list hook
+│   ├── usePresets.ts          # Preset list, upload, delete + toast
 │   └── useServerStatus.ts     # WS → TanStack Query cache patching for live updates
 ├── types/
 │   └── api.ts                 # Hand-maintained types matching backend schemas

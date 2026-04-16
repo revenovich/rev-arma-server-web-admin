@@ -66,6 +66,15 @@ def list_presets() -> list[dict[str, Any]]:
     return list(_presets.values())
 
 
+@router.delete("/{name}")
+def delete_preset(name: str) -> dict[str, str]:
+    global _presets
+    if name not in _presets:
+        raise HTTPException(status_code=404, detail="Preset not found")
+    del _presets[name]
+    return {"deleted": name}
+
+
 @router.get("/comparison")
 def get_comparison() -> dict[str, Any]:
     if _comparison is None:

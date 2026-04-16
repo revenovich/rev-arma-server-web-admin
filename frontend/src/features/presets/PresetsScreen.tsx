@@ -3,26 +3,20 @@ import { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
-import type { Preset } from "@/types/api";
+import { usePresets, useUploadPresets, useDeletePreset } from "@/hooks/usePresets";
 import { cn } from "@/lib/utils";
 
-const PRESETS_KEY = ["presets"] as const;
-
 export function PresetsScreen() {
-  const { data: presets, isLoading, error } = useQuery<Preset[]>({
-    queryKey: PRESETS_KEY,
-    queryFn: () => api.get<Preset[]>("/presets/"),
-  });
+  const { data: presets, isLoading, error } = usePresets();
+  const uploadPresets = useUploadPresets();
+  const deletePreset = useDeletePreset();
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const formData = new FormData();
-    acceptedFiles.forEach((file) => {
-      formData.append("files", file);
-    });
-    fetch("/api/presets/upload", { method: "POST", body: formData });
-  }, []);
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      uploadPresets.mutate(acceptedFiles);
+    },
+    [uploadPresets],
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -53,7 +47,7 @@ export function PresetsScreen() {
           "glass flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 transition-colors focus-visible:outline-2 focus-visible:outline-ring",
           isDragActive
             ? "border-indigo-400/40 bg-indigo-500/10"
-            : "border-white/20 hover:border-indigo-400/40"
+            : "border-white/20 hover:border-indigo-400/40",
         )}
       >
         <input {...getInputProps()} />
@@ -74,18 +68,22 @@ export function PresetsScreen() {
         <div className="space-y-2">
           {presets.map((preset) => (
             <div
-              key={preset.id}
+              key={preset.source_file}
               className="glass flex items-center gap-3 rounded-xl px-4 py-3 transition-colors hover:bg-white/10"
             >
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-text">{preset.name}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{preset.mods.length} mods</p>
+                <p className="text-sm font-medium text-text">{preset.preset_name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{preset.mod_count} mods</p>
               </div>
               <div className="flex shrink-0 gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   className="text-xs"
+                  onClick={() => {
+                    /* TODO: wire to server mod list */
+                  }}
+                  title="Apply this preset's mod list to a server (not yet connected)"
                 >
                   Load
                 </Button>
@@ -93,7 +91,9 @@ export function PresetsScreen() {
                   variant="destructive"
                   size="sm"
                   className="text-xs"
-                  aria-label={`Delete ${preset.name}`}
+                  aria-label={`Delete ${preset.preset_name}`}
+                  disabled={deletePreset.isPending}
+                  onClick={() => deletePreset.mutate(preset.source_file)}
                 >
                   Delete
                 </Button>

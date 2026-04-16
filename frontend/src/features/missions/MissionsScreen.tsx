@@ -4,19 +4,18 @@ import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMissions, useDeleteMission, useRefreshMissions } from "@/hooks/useMissions";
+import { useMissions, useDeleteMission, useRefreshMissions, useUploadMissions } from "@/hooks/useMissions";
 import { cn } from "@/lib/utils";
 
 export function MissionsScreen() {
   const { data: missions, isLoading, error } = useMissions();
   const deleteMission = useDeleteMission();
   const refreshMissions = useRefreshMissions();
+  const uploadMissions = useUploadMissions();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    const formData = new FormData();
-    acceptedFiles.forEach((file) => formData.append("files", file));
-    fetch("/api/missions/", { method: "POST", body: formData });
-  }, []);
+    uploadMissions.mutate(acceptedFiles);
+  }, [uploadMissions]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,

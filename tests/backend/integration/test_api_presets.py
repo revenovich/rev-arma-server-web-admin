@@ -81,6 +81,31 @@ def test_get_preset_not_found(client: TestClient) -> None:
 
 
 # ---------------------------------------------------------------------------
+# DELETE /api/presets/{name} — delete preset
+# ---------------------------------------------------------------------------
+
+def test_delete_preset_not_found(client: TestClient) -> None:
+    resp = client.delete("/api/presets/ghost")
+    assert resp.status_code == 404
+
+
+def test_delete_preset_success(client: TestClient) -> None:
+    from app.schemas.preset import ModEntry, Preset
+
+    preset = Preset(
+        preset_name="Test Preset",
+        source_file="test_preset.html",
+        mod_count=1,
+        mods=[ModEntry(name="ACE", source="steam", steam_id="123")],
+    )
+    presets_module._presets["test_preset.html"] = preset.model_dump()
+    resp = client.delete("/api/presets/test_preset.html")
+    assert resp.status_code == 200
+    assert resp.json()["deleted"] == "test_preset.html"
+    assert "test_preset.html" not in presets_module._presets
+
+
+# ---------------------------------------------------------------------------
 # GET /api/presets/link-status — no downloads dir returns empty
 # ---------------------------------------------------------------------------
 

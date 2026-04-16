@@ -434,7 +434,7 @@ cd frontend && npm run test
 cd frontend && npm run typecheck
 ```
 
-Current coverage: **80%+** (288 tests, 3 skipped for Linux-only symlink tests on Windows).
+Current coverage: **80%+** backend (338 tests, 3 skipped for Linux-only symlink tests on Windows) and **85%+** frontend (447 Vitest tests).
 
 ---
 

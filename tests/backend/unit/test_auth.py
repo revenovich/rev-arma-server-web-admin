@@ -104,3 +104,24 @@ def test_successful_auth_resets_fail_counter(tmp_path: Path) -> None:
 
     auth_module._fail_counts.clear()
     auth_module._fail_times.clear()
+
+
+# ---------------------------------------------------------------------------
+# GET /api/auth endpoint — auth_required probe
+# ---------------------------------------------------------------------------
+
+
+def test_auth_endpoint_returns_false_when_no_credentials(tmp_path: Path) -> None:
+    """GET /api/auth should return {auth_required: false} when no credentials configured."""
+    with _make_client(tmp_path) as c:
+        resp = c.get("/api/auth")
+    assert resp.status_code == 200
+    assert resp.json() == {"auth_required": False}
+
+
+def test_auth_endpoint_returns_true_when_credentials_configured(tmp_path: Path) -> None:
+    """GET /api/auth should return {auth_required: true} when credentials are set."""
+    with _make_client(tmp_path, username="admin", password="secret") as c:
+        resp = c.get("/api/auth")
+    assert resp.status_code == 200
+    assert resp.json() == {"auth_required": True}

@@ -78,6 +78,30 @@ export const api = {
     return request<T>(path, { method: "DELETE" });
   },
 
+  /** POST multipart/form-data (file uploads). Skips Content-Type so browser sets it. */
+  upload<T>(path: string, formData: FormData): Promise<T> {
+    const url = path.startsWith("/") ? `/api${path}` : path;
+    const headers: Record<string, string> = {};
+    if (authHeader) {
+      headers["Authorization"] = authHeader;
+    }
+    // Intentionally omit Content-Type — browser sets multipart boundary automatically
+    return fetch(url, {
+      method: "POST",
+      headers,
+      body: formData,
+    }).then(async (response) => {
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new ApiError(response.status, response.statusText, body);
+      }
+      if (response.status === 204) {
+        return null as T;
+      }
+      return response.json() as Promise<T>;
+    });
+  },
+
   setAuth(user: string, pass: string): void {
     authHeader = `Basic ${btoa(`${user}:${pass}`)}`;
   },
