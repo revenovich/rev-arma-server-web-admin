@@ -186,6 +186,6 @@ describe("OverviewScreen", () => {
     });
 
     const link = screen.getByRole("link", { name: /operation arrowhead/i });
-    expect(link).toHaveAttribute("href", "/servers/test-server-1/info");
+    expect(link).toHaveAttribute("href", "/servers/test-server-1/general");
   });
 });

@@ -44,7 +44,7 @@ export function ServerCard({ server }: ServerCardProps) {
     <Card className="group flex flex-col gap-3 p-5 transition-all duration-200 hover:bg-white/10 hover:scale-[1.01]">
       {/* Title row — the link area */}
       <Link
-        to={`/servers/${server.id}/info`}
+        to={`/servers/${server.id}/general`}
         className="flex items-start justify-between"
         aria-label={`Open ${server.title}`}
       >

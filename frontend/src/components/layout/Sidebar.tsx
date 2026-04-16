@@ -86,7 +86,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
               return (
                 <li key={server.id}>
                   <Link
-                    to={`/servers/${server.id}/info`}
+                    to={`/servers/${server.id}/general`}
                     onClick={onNavigate}
                     className={cn(
                       "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-all duration-200",

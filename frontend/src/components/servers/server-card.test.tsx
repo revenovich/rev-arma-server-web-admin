@@ -102,7 +102,7 @@ describe("ServerCard", () => {
   it("title area links to server detail info tab", () => {
     renderCard(ONLINE_SERVER);
     const link = screen.getByRole("link");
-    expect(link).toHaveAttribute("href", "/servers/online-server/info");
+    expect(link).toHaveAttribute("href", "/servers/online-server/general");
   });
 
   it("uses default max_players when state is null", () => {
