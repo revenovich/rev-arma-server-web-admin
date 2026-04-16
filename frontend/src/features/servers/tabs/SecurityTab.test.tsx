@@ -5,7 +5,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SecurityTab } from "./SecurityTab";
 import type { Server } from "@/types/api";
 
-const mockServer: Server = {
+// SecurityTab reads extra fields via (server as unknown as Record<string, unknown>)
+// These fields exist on the backend schema but not on the frontend Server type.
+const mockServer: Server & Record<string, unknown> = {
   id: "server-1",
   title: "Test Server",
   port: 2302,
@@ -60,7 +62,7 @@ function createTestQueryClient() {
   });
 }
 
-function renderSecurityTab(overrides: { server?: Partial<Server>; isLoading?: boolean } = {}) {
+function renderSecurityTab(overrides: { server?: Partial<Server & Record<string, unknown>>; isLoading?: boolean } = {}) {
   const queryClient = createTestQueryClient();
 
   const server = { ...mockServer, ...overrides.server };
