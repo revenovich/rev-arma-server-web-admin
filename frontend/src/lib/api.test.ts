@@ -88,7 +88,7 @@ describe("api fetch wrapper", () => {
       },
     );
 
-    await api.post("/servers", { hostname: "New Server" });
+    await api.post("/servers/", { hostname: "New Server" });
     expect(capturedInit.method).toBe("POST");
     expect(capturedInit.body).toBe(JSON.stringify({ hostname: "New Server" }));
   });

@@ -12,6 +12,7 @@ interface AdvancedForm {
   additionalConfigurationOptions: string;
   motd: string;
   motdInterval: number;
+  number_of_headless_clients: number;
 }
 
 export function AdvancedTab() {
@@ -24,6 +25,7 @@ export function AdvancedTab() {
     additionalConfigurationOptions: "",
     motd: "",
     motdInterval: 5,
+    number_of_headless_clients: 0,
   });
   const [initialized, setInitialized] = useState(false);
   const [paramInput, setParamInput] = useState("");
@@ -35,6 +37,7 @@ export function AdvancedTab() {
       additionalConfigurationOptions: server.additionalConfigurationOptions ?? "",
       motd: server.motd ?? "",
       motdInterval: 5,
+      number_of_headless_clients: server.number_of_headless_clients ?? 0,
     });
     setInitialized(true);
   }
@@ -67,6 +70,7 @@ export function AdvancedTab() {
       parameters: form.parameters,
       additionalConfigurationOptions: form.additionalConfigurationOptions || null,
       motd: form.motd || null,
+      number_of_headless_clients: form.number_of_headless_clients,
     });
   }
 
@@ -154,6 +158,30 @@ export function AdvancedTab() {
             }
           />
         </div>
+      </Card>
+
+      {/* Headless Clients */}
+      <Card className="space-y-4 p-5">
+        <h3 className="section-label">Headless Clients</h3>
+        <div className="space-y-1.5">
+          <label htmlFor="hcCount" className="text-xs text-muted-foreground">
+            Number of Headless Clients
+          </label>
+          <Input
+            id="hcCount"
+            type="number"
+            min={0}
+            max={16}
+            value={form.number_of_headless_clients}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, number_of_headless_clients: parseInt(e.target.value) || 0 }))
+            }
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Headless clients connect without rendering and offload AI processing from the server.
+          Configure headless client and local client IP addresses in the server.cfg additional configuration below.
+        </p>
       </Card>
 
       {/* Additional Config Options */}

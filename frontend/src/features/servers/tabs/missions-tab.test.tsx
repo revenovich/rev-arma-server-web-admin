@@ -29,33 +29,37 @@ const MOCK_MISSIONS: Mission[] = [
   },
 ];
 
-const MOCK_SERVER_WITH_MISSIONS: Server = {
-  id: "srv-1",
-  title: "Test Server",
-  port: 2302,
-  password: null,
-  admin_password: null,
-  auto_start: false,
-  battle_eye: true,
-  file_patching: false,
-  forcedDifficulty: null,
-  allowed_file_patching: 0,
-  max_players: 32,
-  missions: [
-    { template: "co_10_escape.malden.pbo", difficulty: "Regular" },
-    { template: "tvt_20_battle.altis.pbo", difficulty: "Veteran" },
-  ],
-  mods: [],
-  motd: null,
-  number_of_headless_clients: 0,
-  parameters: [],
-  persistent: false,
-  von: true,
-  verify_signatures: 2,
-  additionalConfigurationOptions: null,
-  pid: null,
-  state: null,
-};
+function createMockServer(missions: unknown[]): Server {
+  return {
+    id: "srv-1",
+    title: "Test Server",
+    port: 2302,
+    password: null,
+    admin_password: null,
+    auto_start: false,
+    battle_eye: true,
+    file_patching: false,
+    forcedDifficulty: null,
+    allowed_file_patching: 0,
+    max_players: 32,
+    missions,
+    mods: [],
+    motd: null,
+    number_of_headless_clients: 0,
+    parameters: [],
+    persistent: false,
+    von: true,
+    verify_signatures: 2,
+    additionalConfigurationOptions: null,
+    pid: null,
+    state: null,
+  };
+}
+
+const MOCK_SERVER_WITH_MISSIONS = createMockServer([
+  { template: "co_10_escape.malden.pbo", difficulty: "Regular", params: [] },
+  { template: "tvt_20_battle.altis.pbo", difficulty: "Veteran", params: ["missionConfig = 1"] },
+]);
 
 vi.mock("@/hooks/useServers", () => ({
   useServer: vi.fn(() => ({ data: MOCK_SERVER_WITH_MISSIONS, isLoading: false })),
@@ -102,7 +106,6 @@ describe("MissionsTab", () => {
 
   it("shows worldName for available missions", () => {
     renderTab();
-    // Available missions section shows worldName
     expect(screen.getByText(/malden/i)).toBeInTheDocument();
     expect(screen.getByText(/altis/i)).toBeInTheDocument();
   });
@@ -116,9 +119,7 @@ describe("MissionsTab", () => {
   it("preloads difficulty from server mission data", () => {
     renderTab();
     const selects = screen.getAllByRole("combobox") as HTMLSelectElement[];
-    // First mission has difficulty "Regular"
     expect(selects[0].value).toBe("Regular");
-    // Second mission has difficulty "Veteran"
     expect(selects[1].value).toBe("Veteran");
   });
 
@@ -129,5 +130,45 @@ describe("MissionsTab", () => {
     expect(mockInvalidate).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: ["missions"] }),
     );
+  });
+
+  // ── NEW: Per-mission parameters ──────────────────────────────────────────
+
+  it("shows existing mission params as chips", () => {
+    renderTab();
+    // Second mission has params: ["missionConfig = 1"]
+    expect(screen.getAllByText("missionConfig = 1").length).toBeGreaterThan(0);
+  });
+
+  it("can add a parameter to a mission", () => {
+    renderTab();
+    // Find param input for the first mission and add a param
+    const paramInputs = screen.getAllByPlaceholderText(/param/i);
+    fireEvent.change(paramInputs[0], { target: { value: "viewDistance = 3000" } });
+    fireEvent.keyDown(paramInputs[0], { key: "Enter" });
+    expect(screen.getAllByText("viewDistance = 3000").length).toBeGreaterThan(0);
+  });
+
+  it("can remove a parameter from a mission", () => {
+    renderTab();
+    // Second mission has "missionConfig = 1" param — find its remove button
+    const removeBtn = screen.getByRole("button", { name: /remove param missionConfig = 1/i });
+    fireEvent.click(removeBtn);
+    expect(screen.queryByText("missionConfig = 1")).not.toBeInTheDocument();
+  });
+
+  it("includes params in save payload", async () => {
+    renderTab();
+    const saveBtn = screen.getByRole("button", { name: /save changes/i });
+    fireEvent.click(saveBtn);
+    await vi.waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          missions: expect.arrayContaining([
+            expect.objectContaining({ params: expect.any(Array) }),
+          ]),
+        }),
+      );
+    });
   });
 });

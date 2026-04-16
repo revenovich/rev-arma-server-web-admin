@@ -66,9 +66,12 @@ def write_server_cfg(schema: ServerSchema, settings: Settings, dest: Path) -> No
         for i, mission in enumerate(schema.missions, start=1):
             template = mission.get("template", "") if isinstance(mission, dict) else str(mission)
             difficulty = mission.get("difficulty", "Regular") if isinstance(mission, dict) else "Regular"
+            params = mission.get("params", []) if isinstance(mission, dict) else []
             lines.append(f"    class Mission_{i} {{")
             lines.append(f'        template = "{template}";')
             lines.append(f'        difficulty = "{difficulty}";')
+            for param in params:
+                lines.append(f"        {param};")
             lines.append("    };")
         lines.append("};")
 

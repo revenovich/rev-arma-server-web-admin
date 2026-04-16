@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Search, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -27,12 +27,14 @@ export function ModsTab() {
     setInitialized(true);
   }
 
-  const activeSet = new Set(activeMods);
+  const scannedSet = useMemo(
+    () => new Set((allMods ?? []).map((m) => m.name)),
+    [allMods],
+  );
 
   // Available = all mods not in activeMods
   const availableMods = useMemo(
-    () => (allMods ?? []).filter((m) => !activeSet.has(m.name)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () => (allMods ?? []).filter((m) => !activeMods.includes(m.name)),
     [allMods, activeMods],
   );
 
@@ -159,20 +161,31 @@ export function ModsTab() {
             {filteredActive.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted-foreground">No active mods</p>
             ) : (
-              filteredActive.map((mod) => (
-                <button
-                  key={mod}
-                  type="button"
-                  onClick={() => toggleSelect(mod)}
-                  className={`flex w-full items-center rounded-md px-3 py-1.5 text-left text-sm transition-colors ${
-                    selected.includes(mod)
-                      ? "bg-accent text-accent-foreground"
-                      : "hover:bg-white/10"
-                  }`}
-                >
-                  <span className="truncate font-mono">{mod}</span>
-                </button>
-              ))
+              filteredActive.map((mod) => {
+                const isMissing = !scannedSet.has(mod);
+                return (
+                  <button
+                    key={mod}
+                    type="button"
+                    onClick={() => toggleSelect(mod)}
+                    className={`flex w-full items-center gap-1.5 rounded-md px-3 py-1.5 text-left text-sm transition-colors ${
+                      selected.includes(mod)
+                        ? "bg-accent text-accent-foreground"
+                        : "hover:bg-white/10"
+                    }`}
+                  >
+                    <span className={`truncate font-mono ${isMissing ? "text-muted-foreground line-through" : ""}`}>
+                      {mod}
+                    </span>
+                    {isMissing && (
+                      <span className="inline-flex items-center gap-0.5 rounded bg-orange-500/20 px-1.5 py-0.5 text-[10px] font-medium text-orange-400">
+                        <AlertTriangle className="h-3 w-3" />
+                        Missing
+                      </span>
+                    )}
+                  </button>
+                );
+              })
             )}
           </div>
         </Card>

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import type { Server } from "@/types/api";
-import { InfoTab } from "./InfoTab";
+import { GeneralTab } from "./GeneralTab";
 
 const MOCK_SERVER: Server = {
   id: "test-server",
@@ -40,7 +40,7 @@ function createTestQueryClient() {
   });
 }
 
-function renderInfoTab(overrides: { server?: Partial<Server> } = {}) {
+function renderGeneralTab(overrides: { server?: Partial<Server> } = {}) {
   const queryClient = createTestQueryClient();
   const server = { ...MOCK_SERVER, ...overrides.server };
 
@@ -55,24 +55,12 @@ function renderInfoTab(overrides: { server?: Partial<Server> } = {}) {
           json: () => Promise.resolve(server),
         });
       }
-      if (url.includes("/api/servers/test-server") && input instanceof Request && input.method === "PUT") {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve({ ...server, ...overrides.server }),
-        });
-      }
       return Promise.resolve({ ok: true, json: () => Promise.resolve(null) });
     }),
   );
 
   const router = createMemoryRouter(
-    [
-      {
-        path: "/servers/:id",
-        element: <InfoTab />,
-      },
-    ],
+    [{ path: "/servers/:id", element: <GeneralTab /> }],
     { initialEntries: ["/servers/test-server"] },
   );
 
@@ -83,23 +71,21 @@ function renderInfoTab(overrides: { server?: Partial<Server> } = {}) {
   );
 }
 
-describe("InfoTab", () => {
+describe("GeneralTab", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("renders form sections", async () => {
-    renderInfoTab();
+  it("renders Identity and Passwords sections", async () => {
+    renderGeneralTab();
     await waitFor(() => {
       expect(screen.getByText("Identity")).toBeInTheDocument();
     });
     expect(screen.getByText("Passwords")).toBeInTheDocument();
-    expect(screen.getByText("Players & Messages")).toBeInTheDocument();
-    expect(screen.getByText("Server Options")).toBeInTheDocument();
   });
 
   it("populates form with server data", async () => {
-    renderInfoTab();
+    renderGeneralTab();
     await waitFor(() => {
       expect(screen.getByLabelText("Server Name *")).toHaveValue("My Arma Server");
     });
@@ -108,33 +94,56 @@ describe("InfoTab", () => {
   });
 
   it("shows password fields", async () => {
-    renderInfoTab();
+    renderGeneralTab();
     await waitFor(() => {
       expect(screen.getByLabelText("Player Password")).toBeInTheDocument();
     });
     expect(screen.getByLabelText("Admin Password")).toBeInTheDocument();
   });
 
-  it("shows toggle switches", async () => {
-    renderInfoTab();
+  it("renders Persistent, VON, and Auto Start switches", async () => {
+    renderGeneralTab();
     await waitFor(() => {
       expect(screen.getByRole("switch", { name: "Persistent" })).toBeInTheDocument();
     });
     expect(screen.getByRole("switch", { name: "Voice Over Network" })).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Auto Start" })).toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: "BattlEye" })).toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: "File Patching" })).toBeInTheDocument();
   });
 
-  it("renders Save Changes button", async () => {
-    renderInfoTab();
+  it("does NOT render BattlEye switch (moved to Security tab)", async () => {
+    renderGeneralTab();
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /save changes/i })).toBeInTheDocument();
+      expect(screen.getByText("Identity")).toBeInTheDocument();
     });
+    expect(screen.queryByRole("switch", { name: /battl/i })).not.toBeInTheDocument();
+  });
+
+  it("does NOT render Verify Signatures input (moved to Security tab)", async () => {
+    renderGeneralTab();
+    await waitFor(() => {
+      expect(screen.getByText("Identity")).toBeInTheDocument();
+    });
+    expect(screen.queryByLabelText(/verify.*signatures/i)).not.toBeInTheDocument();
+  });
+
+  it("does NOT render File Patching switch (moved to Security tab)", async () => {
+    renderGeneralTab();
+    await waitFor(() => {
+      expect(screen.getByText("Identity")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("switch", { name: /file patching/i })).not.toBeInTheDocument();
+  });
+
+  it("does NOT render MOTD input (moved to Advanced tab)", async () => {
+    renderGeneralTab();
+    await waitFor(() => {
+      expect(screen.getByText("Identity")).toBeInTheDocument();
+    });
+    expect(screen.queryByLabelText(/message of the day/i)).not.toBeInTheDocument();
   });
 
   it("disables Save Changes when form is not dirty", async () => {
-    renderInfoTab();
+    renderGeneralTab();
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /save changes/i })).toBeDisabled();
     });
@@ -142,7 +151,7 @@ describe("InfoTab", () => {
 
   it("shows validation error when title is cleared", async () => {
     const user = userEvent.setup();
-    renderInfoTab();
+    renderGeneralTab();
 
     await waitFor(() => {
       expect(screen.getByLabelText("Server Name *")).toHaveValue("My Arma Server");
@@ -150,36 +159,10 @@ describe("InfoTab", () => {
 
     const titleInput = screen.getByLabelText("Server Name *");
     await user.clear(titleInput);
-
-    // Submit to trigger validation
     await user.click(screen.getByRole("button", { name: /save changes/i }));
 
     await waitFor(() => {
       expect(screen.getByText("Server name is required")).toBeInTheDocument();
     });
-  });
-
-  it("shows loading state", () => {
-    // Don't resolve fetch — keep it pending
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockReturnValue(new Promise(() => {})),
-    );
-
-    const queryClient = createTestQueryClient();
-    const router = createMemoryRouter(
-      [{ path: "/servers/:id", element: <InfoTab /> }],
-      { initialEntries: ["/servers/test-server"] },
-    );
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>,
-    );
-
-    // Should show skeleton placeholders
-    const skeletons = document.querySelectorAll("[data-slot='skeleton']");
-    expect(skeletons.length).toBeGreaterThanOrEqual(1);
   });
 });

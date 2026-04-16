@@ -27,14 +27,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 const TAB_ITEMS = [
-  { value: "info", label: "Info" },
+  { value: "general", label: "General" },
   { value: "missions", label: "Missions" },
   { value: "mods", label: "Mods" },
   { value: "difficulty", label: "Difficulty" },
   { value: "network", label: "Network" },
   { value: "security", label: "Security" },
   { value: "advanced", label: "Advanced" },
-  { value: "headless", label: "Headless" },
 ] as const;
 
 export type ServerTab = (typeof TAB_ITEMS)[number]["value"];
@@ -51,7 +50,7 @@ export function ServerDetailScreen() {
   const { mutate: deleteServer, isPending: isDeleting } = useDeleteServer();
 
   const pathSegments = location.pathname.split("/");
-  const currentTab = (pathSegments[3] as ServerTab) ?? "info";
+  const currentTab = (pathSegments[3] as ServerTab) ?? "general";
 
   const online = server?.state?.online ?? false;
   const players = server?.state?.players ?? 0;

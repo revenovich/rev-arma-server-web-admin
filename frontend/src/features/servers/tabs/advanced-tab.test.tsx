@@ -22,7 +22,7 @@ const MOCK_SERVER: Server = {
   missions: [],
   mods: [],
   motd: null,
-  number_of_headless_clients: 0,
+  number_of_headless_clients: 3,
   parameters: ["-world Altis", "-serverMod @GM"],
   persistent: false,
   von: true,
@@ -64,7 +64,6 @@ describe("AdvancedTab", () => {
 
   it("shows existing parameters as chips", () => {
     renderTab();
-    // getAllByText handles multiple DOM nodes containing the same text
     expect(screen.getAllByText("-world Altis").length).toBeGreaterThan(0);
     expect(screen.getAllByText("-serverMod @GM").length).toBeGreaterThan(0);
   });
@@ -84,14 +83,44 @@ describe("AdvancedTab", () => {
     expect(screen.queryByText("-world Altis")).not.toBeInTheDocument();
   });
 
-  it("does not render a Persistent toggle (moved to InfoTab)", () => {
+  it("does not render a Persistent toggle (moved to General tab)", () => {
     renderTab();
-    // The AdvancedTab should not have a switch or label for Persistent
     expect(screen.queryByRole("switch", { name: /persistent/i })).not.toBeInTheDocument();
   });
 
   it("renders the additional configuration textarea", () => {
     renderTab();
     expect(screen.getByRole("textbox", { name: /additional/i })).toBeInTheDocument();
+  });
+
+  // ── NEW: Headless client merged from HeadlessTab ─────────────────────────
+
+  it("renders headless client count input", () => {
+    renderTab();
+    expect(screen.getByLabelText(/number of headless clients/i)).toBeInTheDocument();
+  });
+
+  it("populates headless client count from server data", () => {
+    renderTab();
+    const hcInput = screen.getByLabelText(/number of headless clients/i) as HTMLInputElement;
+    expect(hcInput.value).toBe("3");
+  });
+
+  it("renders headless client info note", () => {
+    renderTab();
+    expect(screen.getByText(/headless client.*IP/i)).toBeInTheDocument();
+  });
+
+  it("saves headless client count with other advanced fields", async () => {
+    renderTab();
+    const saveBtn = screen.getByRole("button", { name: /save changes/i });
+    fireEvent.click(saveBtn);
+    await vi.waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          number_of_headless_clients: expect.any(Number),
+        }),
+      );
+    });
   });
 });

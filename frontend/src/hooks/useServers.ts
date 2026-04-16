@@ -27,7 +27,7 @@ export function useServer(id: string) {
 export function useCreateServer() {
   const queryClient = useQueryClient();
   return useMutation<Server, Error, ServerCreatePayload>({
-    mutationFn: (payload) => api.post<Server>("/servers", payload),
+    mutationFn: (payload) => api.post<Server>("/servers/", payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: SERVERS_KEY });
       toast.success("Server created");

@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import asyncio
+import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
 import structlog
+
+# Windows + Python 3.9: SelectorEventLoop doesn't support subprocesses.
+# ProactorEventLoop is required for asyncio.create_subprocess_exec().
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles

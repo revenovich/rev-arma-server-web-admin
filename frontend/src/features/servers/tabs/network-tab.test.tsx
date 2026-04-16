@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NetworkTab } from "@/features/servers/tabs/NetworkTab";
 import type { Server } from "@/types/api";
 
-const MOCK_SERVER: Server = {
+const MOCK_SERVER_WITH_NETWORK: Server = {
   id: "test-server",
   title: "Test Server",
   port: 2302,
@@ -29,14 +29,29 @@ const MOCK_SERVER: Server = {
   additionalConfigurationOptions: null,
   pid: null,
   state: { online: false, players: 0, maxPlayers: 0, mission: null, map: null },
-};
+  // Network fields (passed through extra="allow")
+  MaxMsgSend: 256,
+  MaxSizeGuaranteed: 1024,
+  MaxSizeNonguaranteed: 512,
+  MinBandwidth: 262144,
+  MaxBandwidth: 2097152,
+  MinPacketSize: 44,
+  MaxPacketSize: 1400,
+  MaxPing: 200,
+  MaxPacketLoss: 10,
+  MaxDesync: 500,
+  DisconnectTimeout: 30,
+  kickDuplicate: 1,
+  loopback: 1,
+  upnp: 0,
+} as Server & Record<string, unknown>;
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
 });
 
 vi.mock("@/hooks/useServers", () => ({
-  useServer: () => ({ data: MOCK_SERVER, isLoading: false }),
+  useServer: () => ({ data: MOCK_SERVER_WITH_NETWORK, isLoading: false }),
   useUpdateServer: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
@@ -64,10 +79,7 @@ describe("NetworkTab", () => {
   it("applies bandwidth preset on click", async () => {
     const user = userEvent.setup();
     render(<NetworkTab />, { wrapper: Wrapper });
-
     await user.click(screen.getByText("Unlimited"));
-
-    // Unlimited sets MaxMsgSend to 4096
     const maxMsgSend = screen.getByLabelText("Max Messages Sent") as HTMLInputElement;
     expect(maxMsgSend.value).toBe("4096");
   });
@@ -87,5 +99,38 @@ describe("NetworkTab", () => {
   it("renders Save Changes button", () => {
     render(<NetworkTab />, { wrapper: Wrapper });
     expect(screen.getByRole("button", { name: /save/i })).toBeInTheDocument();
+  });
+
+  // ── NEW: Form initialization from server data ────────────────────────────
+
+  it("populates form fields from server data", () => {
+    render(<NetworkTab />, { wrapper: Wrapper });
+    const maxMsgSend = screen.getByLabelText("Max Messages Sent") as HTMLInputElement;
+    expect(maxMsgSend.value).toBe("256");
+    const maxPing = screen.getByLabelText("Max Ping Kick (-1 = disabled)") as HTMLInputElement;
+    expect(maxPing.value).toBe("200");
+    const disconnect = screen.getByLabelText("Disconnect Timeout (s)") as HTMLInputElement;
+    expect(disconnect.value).toBe("30");
+  });
+
+  // ── NEW: loopback and upnp as switches ────────────────────────────────
+
+  it("renders Loopback as a switch (not number input)", () => {
+    render(<NetworkTab />, { wrapper: Wrapper });
+    expect(screen.getByRole("switch", { name: /loopback/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/loopback.*number/i)).not.toBeInTheDocument();
+  });
+
+  it("renders UPnP as a switch (not number input)", () => {
+    render(<NetworkTab />, { wrapper: Wrapper });
+    expect(screen.getByRole("switch", { name: /upnp/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/upnp.*number/i)).not.toBeInTheDocument();
+  });
+
+  // ── NEW: kickDuplicate removed from NetworkTab ──────────────────────────
+
+  it("does NOT render kickDuplicate (moved to Security tab)", () => {
+    render(<NetworkTab />, { wrapper: Wrapper });
+    expect(screen.queryByLabelText(/kick duplicate/i)).not.toBeInTheDocument();
   });
 });

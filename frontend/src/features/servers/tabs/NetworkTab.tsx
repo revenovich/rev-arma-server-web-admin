@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,9 +27,8 @@ interface NetworkForm {
   MaxPacketLoss: number;
   MaxDesync: number;
   DisconnectTimeout: number;
-  kickDuplicate: number;
-  loopback: number;
-  upnp: number;
+  loopback: boolean;
+  upnp: boolean;
 }
 
 const DEFAULTS: NetworkForm = {
@@ -43,9 +43,8 @@ const DEFAULTS: NetworkForm = {
   MaxPacketLoss: -1,
   MaxDesync: -1,
   DisconnectTimeout: 15,
-  kickDuplicate: 0,
-  loopback: 0,
-  upnp: 0,
+  loopback: false,
+  upnp: false,
 };
 
 export function NetworkTab() {
@@ -57,6 +56,22 @@ export function NetworkTab() {
   const [initialized, setInitialized] = useState(false);
 
   if (server && !initialized) {
+    const s = server as Record<string, unknown>;
+    setForm({
+      MaxMsgSend: (s.MaxMsgSend as number) ?? DEFAULTS.MaxMsgSend,
+      MaxSizeGuaranteed: (s.MaxSizeGuaranteed as number) ?? DEFAULTS.MaxSizeGuaranteed,
+      MaxSizeNonguaranteed: (s.MaxSizeNonguaranteed as number) ?? DEFAULTS.MaxSizeNonguaranteed,
+      MinBandwidth: (s.MinBandwidth as number) ?? DEFAULTS.MinBandwidth,
+      MaxBandwidth: (s.MaxBandwidth as number) ?? DEFAULTS.MaxBandwidth,
+      MinPacketSize: (s.MinPacketSize as number) ?? DEFAULTS.MinPacketSize,
+      MaxPacketSize: (s.MaxPacketSize as number) ?? DEFAULTS.MaxPacketSize,
+      MaxPing: (s.MaxPing as number) ?? DEFAULTS.MaxPing,
+      MaxPacketLoss: (s.MaxPacketLoss as number) ?? DEFAULTS.MaxPacketLoss,
+      MaxDesync: (s.MaxDesync as number) ?? DEFAULTS.MaxDesync,
+      DisconnectTimeout: (s.DisconnectTimeout as number) ?? DEFAULTS.DisconnectTimeout,
+      loopback: Boolean(s.loopback),
+      upnp: Boolean(s.upnp),
+    });
     setInitialized(true);
   }
 
@@ -124,7 +139,7 @@ export function NetworkTab() {
           {numberFields.map(({ key, label }) => (
             <div key={key} className="space-y-1.5">
               <label htmlFor={key} className="text-xs text-muted-foreground">{label}</label>
-              <Input id={key} type="number" value={form[key]} onChange={(e) => updateField(key, parseInt(e.target.value) || 0)} />
+              <Input id={key} type="number" value={form[key] as number} onChange={(e) => updateField(key, parseInt(e.target.value) || 0)} />
             </div>
           ))}
         </div>
@@ -137,9 +152,34 @@ export function NetworkTab() {
           {networkQualityFields.map(({ key, label }) => (
             <div key={key} className="space-y-1.5">
               <label htmlFor={key} className="text-xs text-muted-foreground">{label}</label>
-              <Input id={key} type="number" value={form[key]} onChange={(e) => updateField(key, parseInt(e.target.value) || 0)} />
+              <Input id={key} type="number" value={form[key] as number} onChange={(e) => updateField(key, parseInt(e.target.value) || 0)} />
             </div>
           ))}
+        </div>
+      </Card>
+
+      {/* Switches */}
+      <Card className="space-y-4 p-5">
+        <h3 className="section-label">Network Options</h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex items-center justify-between gap-3">
+            <label id="loopback-label" htmlFor="loopback" className="text-sm">Loopback</label>
+            <Switch
+              id="loopback"
+              aria-labelledby="loopback-label"
+              checked={form.loopback}
+              onCheckedChange={(checked) => setForm((prev) => ({ ...prev, loopback: checked }))}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <label id="upnp-label" htmlFor="upnp" className="text-sm">UPnP</label>
+            <Switch
+              id="upnp"
+              aria-labelledby="upnp-label"
+              checked={form.upnp}
+              onCheckedChange={(checked) => setForm((prev) => ({ ...prev, upnp: checked }))}
+            />
+          </div>
         </div>
       </Card>
 

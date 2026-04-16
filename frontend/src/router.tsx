@@ -2,14 +2,13 @@ import { type RouteObject } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { OverviewScreen } from "@/features/servers/OverviewScreen";
 import { ServerDetailScreen } from "@/features/servers/ServerDetailScreen";
-import { InfoTab } from "@/features/servers/tabs/InfoTab";
+import { GeneralTab } from "@/features/servers/tabs/GeneralTab";
 import { MissionsTab } from "@/features/servers/tabs/MissionsTab";
 import { ModsTab } from "@/features/servers/tabs/ModsTab";
 import { DifficultyTab } from "@/features/servers/tabs/DifficultyTab";
 import { NetworkTab } from "@/features/servers/tabs/NetworkTab";
 import { SecurityTab } from "@/features/servers/tabs/SecurityTab";
 import { AdvancedTab } from "@/features/servers/tabs/AdvancedTab";
-import { HeadlessTab } from "@/features/servers/tabs/HeadlessTab";
 import { ModsScreen } from "@/features/mods/ModsScreen";
 import { MissionsScreen } from "@/features/missions/MissionsScreen";
 import { LogsScreen } from "@/features/logs/LogsScreen";
@@ -44,15 +43,14 @@ export const routes: RouteObject[] = [
         path: "/servers/:id",
         element: <ServerDetailScreen />,
         children: [
-          { index: true, element: <InfoTab /> },
-          { path: "info", element: <InfoTab /> },
+          { index: true, element: <GeneralTab /> },
+          { path: "general", element: <GeneralTab /> },
           { path: "missions", element: <MissionsTab /> },
           { path: "mods", element: <ModsTab /> },
           { path: "difficulty", element: <DifficultyTab /> },
           { path: "network", element: <NetworkTab /> },
           { path: "security", element: <SecurityTab /> },
           { path: "advanced", element: <AdvancedTab /> },
-          { path: "headless", element: <HeadlessTab /> },
         ],
       },
       { path: "/mods", element: <ModsScreen /> },

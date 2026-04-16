@@ -64,7 +64,7 @@ function createTestQueryClient() {
   });
 }
 
-function renderDetail(path = "/servers/my-server/info") {
+function renderDetail(path = "/servers/my-server/general") {
   const queryClient = createTestQueryClient();
   const router = createMemoryRouter(
     [
@@ -72,15 +72,14 @@ function renderDetail(path = "/servers/my-server/info") {
         path: "/servers/:id",
         element: <ServerDetailScreen />,
         children: [
-          { index: true, element: <div data-testid="tab-content">Info placeholder</div> },
-          { path: "info", element: <div data-testid="tab-content">Info placeholder</div> },
+          { index: true, element: <div data-testid="tab-content">General placeholder</div> },
+          { path: "general", element: <div data-testid="tab-content">General placeholder</div> },
           { path: "missions", element: <div data-testid="tab-content">Missions placeholder</div> },
           { path: "mods", element: <div data-testid="tab-content">Mods placeholder</div> },
           { path: "difficulty", element: <div data-testid="tab-content">Difficulty placeholder</div> },
           { path: "network", element: <div data-testid="tab-content">Network placeholder</div> },
           { path: "security", element: <div data-testid="tab-content">Security placeholder</div> },
           { path: "advanced", element: <div data-testid="tab-content">Advanced placeholder</div> },
-          { path: "headless", element: <div data-testid="tab-content">Headless placeholder</div> },
         ],
       },
     ],
@@ -104,16 +103,25 @@ describe("ServerDetailScreen", () => {
     expect(screen.getByText("My Arma Server")).toBeInTheDocument();
   });
 
-  it("renders all tab triggers", () => {
+  it("renders 7 tab triggers (General, Missions, Mods, Difficulty, Network, Security, Advanced)", () => {
     renderDetail();
-    expect(screen.getByRole("tab", { name: "Info" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "General" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Missions" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Mods" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Difficulty" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Network" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Security" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Advanced" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Headless" })).toBeInTheDocument();
+  });
+
+  it("does NOT render Info tab (renamed to General)", () => {
+    renderDetail();
+    expect(screen.queryByRole("tab", { name: "Info" })).not.toBeInTheDocument();
+  });
+
+  it("does NOT render Headless tab (merged into Advanced)", () => {
+    renderDetail();
+    expect(screen.queryByRole("tab", { name: "Headless" })).not.toBeInTheDocument();
   });
 
   it("renders back link to servers overview", () => {
@@ -121,10 +129,10 @@ describe("ServerDetailScreen", () => {
     expect(screen.getByLabelText("Back to servers")).toHaveAttribute("href", "/");
   });
 
-  it("shows Info tab as active by default", () => {
+  it("shows General tab as active by default", () => {
     renderDetail();
-    const infoTab = screen.getByRole("tab", { name: "Info" });
-    expect(infoTab).toHaveAttribute("data-active");
+    const generalTab = screen.getByRole("tab", { name: "General" });
+    expect(generalTab).toHaveAttribute("data-active");
   });
 
   it("shows Difficulty tab as active when navigated to it", () => {
@@ -133,15 +141,15 @@ describe("ServerDetailScreen", () => {
     expect(diffTab).toHaveAttribute("data-active");
   });
 
-  // ── NEW: header controls ─────────────────────────────────────────────────
+  // ── Header controls ───────────────────────────────────────────────────
 
   it("renders Start button when server is offline", () => {
-    renderDetail("/servers/my-server/info");
+    renderDetail("/servers/my-server/general");
     expect(screen.getByRole("button", { name: /start server/i })).toBeInTheDocument();
   });
 
   it("renders Stop button when server is online", () => {
-    renderDetail("/servers/online-server/info");
+    renderDetail("/servers/online-server/general");
     expect(screen.getByRole("button", { name: /stop server/i })).toBeInTheDocument();
   });
 
@@ -156,7 +164,7 @@ describe("ServerDetailScreen", () => {
   });
 
   it("shows player count in header", () => {
-    renderDetail("/servers/online-server/info");
+    renderDetail("/servers/online-server/general");
     expect(screen.getByText("10/32")).toBeInTheDocument();
   });
 });

@@ -9,30 +9,26 @@ import { Card } from "@/components/ui/card";
 import { useServer, useUpdateServer } from "@/hooks/useServers";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const serverInfoSchema = z.object({
+const serverGeneralSchema = z.object({
   title: z.string().min(1, "Server name is required"),
   port: z.number().int().min(1).max(65535),
   password: z.string().nullable(),
   admin_password: z.string().nullable(),
   max_players: z.number().int().min(1, "Must have at least 1 player").max(256),
-  motd: z.string().nullable(),
   persistent: z.boolean(),
   von: z.boolean(),
   auto_start: z.boolean(),
-  battle_eye: z.boolean(),
-  verify_signatures: z.number().int().min(0).max(2),
-  file_patching: z.boolean(),
 });
 
-type ServerInfoFormValues = z.infer<typeof serverInfoSchema>;
+type ServerGeneralFormValues = z.infer<typeof serverGeneralSchema>;
 
-export function InfoTab() {
+export function GeneralTab() {
   const { id } = useParams<{ id: string }>();
   const { data: server, isLoading } = useServer(id ?? "");
   const updateServer = useUpdateServer(id ?? "");
 
-  const form = useForm<ServerInfoFormValues>({
-    resolver: zodResolver(serverInfoSchema),
+  const form = useForm<ServerGeneralFormValues>({
+    resolver: zodResolver(serverGeneralSchema),
     mode: "onTouched",
     defaultValues: {
       title: "",
@@ -40,13 +36,9 @@ export function InfoTab() {
       password: null,
       admin_password: null,
       max_players: 32,
-      motd: null,
       persistent: false,
       von: true,
       auto_start: false,
-      battle_eye: true,
-      verify_signatures: 2,
-      file_patching: false,
     },
   });
 
@@ -59,17 +51,13 @@ export function InfoTab() {
       password: serverData.password,
       admin_password: serverData.admin_password,
       max_players: serverData.max_players,
-      motd: serverData.motd,
       persistent: serverData.persistent,
       von: serverData.von,
       auto_start: serverData.auto_start,
-      battle_eye: serverData.battle_eye,
-      verify_signatures: serverData.verify_signatures,
-      file_patching: serverData.file_patching,
     });
   }
 
-  async function onSubmit(values: ServerInfoFormValues) {
+  async function onSubmit(values: ServerGeneralFormValues) {
     await updateServer.mutateAsync(values);
   }
 
@@ -134,9 +122,9 @@ export function InfoTab() {
         </div>
       </Card>
 
-      {/* Max Players & MOTD */}
+      {/* Max Players & Server Options */}
       <Card className="space-y-4 p-5">
-        <h3 className="section-label">Players & Messages</h3>
+        <h3 className="section-label">Players & Options</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label htmlFor="max_players" className="text-xs text-muted-foreground">
@@ -147,19 +135,6 @@ export function InfoTab() {
               <p className="text-xs text-danger">{errors.max_players.message}</p>
             )}
           </div>
-          <div className="space-y-1.5">
-            <label htmlFor="motd" className="text-xs text-muted-foreground">
-              Message of the Day
-            </label>
-            <Input id="motd" {...register("motd")} placeholder="None" />
-          </div>
-        </div>
-      </Card>
-
-      {/* Toggles */}
-      <Card className="space-y-4 p-5">
-        <h3 className="section-label">Server Options</h3>
-        <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex items-center justify-between gap-3">
             <label id="persistent-label" htmlFor="persistent" className="text-sm">Persistent</label>
             <Switch
@@ -186,30 +161,6 @@ export function InfoTab() {
               checked={watch("auto_start")}
               onCheckedChange={(checked) => setValue("auto_start", checked, { shouldDirty: true })}
             />
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <label id="battle_eye-label" htmlFor="battle_eye" className="text-sm">BattlEye</label>
-            <Switch
-              id="battle_eye"
-              aria-labelledby="battle_eye-label"
-              checked={watch("battle_eye")}
-              onCheckedChange={(checked) => setValue("battle_eye", checked, { shouldDirty: true })}
-            />
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <label id="file_patching-label" htmlFor="file_patching" className="text-sm">File Patching</label>
-            <Switch
-              id="file_patching"
-              aria-labelledby="file_patching-label"
-              checked={watch("file_patching")}
-              onCheckedChange={(checked) => setValue("file_patching", checked, { shouldDirty: true })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="verify_signatures" className="text-xs text-muted-foreground">
-              Verify Signatures (0-2)
-            </label>
-            <Input id="verify_signatures" type="number" {...register("verify_signatures", { valueAsNumber: true })} />
           </div>
         </div>
       </Card>

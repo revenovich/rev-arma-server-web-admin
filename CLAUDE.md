@@ -5,14 +5,14 @@ This file provides guidance to Claude Code when working with code in this reposi
 ## Branch context
 
 **Active branch**: `master` — Node.js/Express + Backbone.js fully replaced by FastAPI + React 18/Vite/TypeScript.
-**Phase status**: ALL 5 PHASES COMPLETE ✅ (288 backend tests passing, 3 skipped; 126 frontend Vitest tests; 75 E2E Playwright tests; 80.03% backend coverage).
+**Phase status**: ALL 5 PHASES COMPLETE ✅ (288 backend tests passing, 3 skipped; 154 frontend Vitest tests; 75 E2E Playwright tests; 80.03% backend coverage).
 See `PLAN.md` for the full step checklist and all architectural decisions.
 
 ## Current state (as of 2026-04-15)
 
 - Backend: FastAPI on port 9500, all routes implemented and tested.
 - Frontend: React 18 + Vite on port 9510 (dev), served from `frontend/dist/` (prod).
-- Tests: 288 backend tests pass (`python -m pytest tests/ -q`), 3 skipped (Linux symlink tests on Windows); 126 frontend Vitest tests pass.
+- Tests: 288 backend tests pass (`python -m pytest tests/ -q`), 3 skipped (Linux symlink tests on Windows); 154 frontend Vitest tests pass.
 - Coverage: 80.03% (`fail_under = 80` enforced via `pyproject.toml`).
 - Auth: Custom login screen with dedicated `GET /api/auth` probe endpoint (no credentials needed).
 - Theme: Dark mode is the **CSS default** — no class or JS required. Light mode only when `.light` is on `<html>`.
@@ -48,6 +48,11 @@ See `PLAN.md` for the full step checklist and all architectural decisions.
 | Missions stored as strings losing difficulty | `frontend/src/features/servers/tabs/MissionsTab.tsx` | Backend `server_config.py` stores missions as `{template, difficulty}` objects but old frontend code treated them as plain strings. Fixed: `parseMissions()` handles both string entries and `{template, difficulty}` objects for backward compatibility. |
 | Entire ServerCard was a `<Link>` | `frontend/src/components/servers/ServerCard.tsx` | Wrapping the full card in `<Link>` made it impossible to place action buttons without triggering navigation. Fixed: outer `<div>`, title area is `<Link>`, bottom row contains action buttons. |
 | `asChild` prop rejected by Base UI `DialogTrigger`/`AlertDialogTrigger` | `AddServerDialog.tsx`, `ServerDetailScreen.tsx` | Base UI uses a `render` prop instead of Radix's `asChild` pattern. `asChild` is unknown to Base UI's types. Fixed: `<DialogTrigger render={<Button />}>`, `<DialogClose render={<Button />}>`, `<AlertDialogTrigger render={<Button />}>`. |
+| Clone/create server 405 | `useServers.ts` | `POST /api/servers` (no trailing slash) got 405. FastAPI collection routes need trailing slash. Fixed: `api.post("/servers/", payload)`. |
+| `NotImplementedError` on `server.start()` | `app/main.py` | Windows + Python 3.9's `SelectorEventLoop` doesn't support `asyncio.create_subprocess_exec`. Fixed: `asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())` at module level on Windows. |
+| Duplicate fields across tabs / wrong controls | All server detail tabs | InfoTab had `battle_eye`, `verify_signatures`, `file_patching`, `motd` — these belong in Security/Advanced tabs. Boolean fields like `kickDuplicate`, `loopback`, `upnp` were number inputs, not switches. `verify_signatures` was a raw number input, not a dropdown. Fixed: consolidated fields to logical tabs, replaced number inputs with switches/dropdowns, merged HeadlessTab into AdvancedTab, renamed InfoTab to GeneralTab. |
+| Missing mod detection | `ModsTab.tsx` | Active mods not found on filesystem showed no warning. Fixed: cross-reference `server.mods` against `useMods()` scan; show orange "Missing" badge + strikethrough for phantom mods. |
+| Per-mission params not written to server.cfg | `server_config.py`, `MissionsTab.tsx` | Backend ignored `params` in mission entries; frontend had no UI to add them. Fixed: `server_config.py` now writes per-mission params inside `Mission_X` blocks; `MissionsTab` has chip-style add/remove UI for params. |
 
 ---
 

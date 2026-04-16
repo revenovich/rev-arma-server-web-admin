@@ -123,3 +123,37 @@ class TestWriteServerCfg:
 
         assert dest.exists()
         assert dest.stat().st_size > 0
+
+    def test_writes_mission_with_difficulty(self, tmp_path: Path) -> None:
+        server = _make_server(
+            missions=[
+                {"template": "co_10_escape.altis", "difficulty": "Veteran"},
+            ],
+        )
+        settings = _make_settings()
+        dest = tmp_path / "server.cfg"
+        write_server_cfg(server, settings, dest)
+
+        content = dest.read_text()
+        assert 'template = "co_10_escape.altis";' in content
+        assert 'difficulty = "Veteran";' in content
+
+    def test_writes_mission_with_extra_params(self, tmp_path: Path) -> None:
+        server = _make_server(
+            missions=[
+                {
+                    "template": "co_10_escape.altis",
+                    "difficulty": "Custom",
+                    "params": ['viewDistance = 3000', 'respawn = "BASE"'],
+                },
+            ],
+        )
+        settings = _make_settings()
+        dest = tmp_path / "server.cfg"
+        write_server_cfg(server, settings, dest)
+
+        content = dest.read_text()
+        assert 'template = "co_10_escape.altis";' in content
+        assert 'difficulty = "Custom";' in content
+        assert "viewDistance = 3000" in content
+        assert 'respawn = "BASE"' in content

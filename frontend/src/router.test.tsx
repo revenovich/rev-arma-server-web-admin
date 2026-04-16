@@ -62,7 +62,7 @@ describe("Router", () => {
     renderWithRouter("/servers/test-server");
     // Server detail loads async — wait for the heading to appear
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "Info" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "General" })).toBeInTheDocument();
     });
   });
 

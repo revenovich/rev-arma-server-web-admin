@@ -31,11 +31,12 @@ type Difficulty = (typeof DIFFICULTY_OPTIONS)[number];
 interface MissionEntry {
   template: string;
   difficulty: Difficulty;
+  params: string[];
 }
 
 function parseMissions(raw: unknown[]): MissionEntry[] {
   return raw.map((m) => {
-    if (typeof m === "string") return { template: m, difficulty: "Regular" };
+    if (typeof m === "string") return { template: m, difficulty: "Regular", params: [] };
     if (typeof m === "object" && m !== null) {
       const obj = m as Record<string, unknown>;
       return {
@@ -43,9 +44,10 @@ function parseMissions(raw: unknown[]): MissionEntry[] {
         difficulty: (DIFFICULTY_OPTIONS as readonly string[]).includes(String(obj.difficulty))
           ? (obj.difficulty as Difficulty)
           : "Regular",
+        params: Array.isArray(obj.params) ? obj.params.map(String) : [],
       };
     }
-    return { template: String(m), difficulty: "Regular" };
+    return { template: String(m), difficulty: "Regular", params: [] };
   });
 }
 
@@ -53,50 +55,98 @@ interface SortableItemProps {
   entry: MissionEntry;
   onRemove: (template: string) => void;
   onDifficultyChange: (template: string, difficulty: Difficulty) => void;
+  onAddParam: (template: string, param: string) => void;
+  onRemoveParam: (template: string, paramIndex: number) => void;
 }
 
-function SortableItem({ entry, onRemove, onDifficultyChange }: SortableItemProps) {
+function SortableItem({ entry, onRemove, onDifficultyChange, onAddParam, onRemoveParam }: SortableItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: entry.template,
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
+  const [paramInput, setParamInput] = useState("");
+
+  function handleParamKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const val = paramInput.trim();
+      if (val) {
+        onAddParam(entry.template, val);
+        setParamInput("");
+      }
+    }
+  }
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="glass flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm"
+      className="glass space-y-2 rounded-xl border border-white/10 px-3 py-2 text-sm"
     >
-      <button
-        {...attributes}
-        {...listeners}
-        className="cursor-grab text-muted-foreground hover:text-foreground"
-        aria-label="Drag to reorder"
-        type="button"
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
-      <span className="flex-1 truncate font-mono">{entry.template}</span>
-      <select
-        value={entry.difficulty}
-        onChange={(e) => onDifficultyChange(entry.template, e.target.value as Difficulty)}
-        className="h-7 rounded-md border border-input bg-transparent px-2 text-xs focus-visible:border-ring focus-visible:outline-none"
-        aria-label={`Difficulty for ${entry.template}`}
-      >
-        {DIFFICULTY_OPTIONS.map((d) => (
-          <option key={d} value={d}>
-            {d}
-          </option>
-        ))}
-      </select>
-      <button
-        type="button"
-        onClick={() => onRemove(entry.template)}
-        className="text-muted-foreground hover:text-danger"
-        aria-label={`Remove ${entry.template}`}
-      >
-        <X className="h-4 w-4" />
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab text-muted-foreground hover:text-foreground"
+          aria-label="Drag to reorder"
+          type="button"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <span className="flex-1 truncate font-mono">{entry.template}</span>
+        <select
+          value={entry.difficulty}
+          onChange={(e) => onDifficultyChange(entry.template, e.target.value as Difficulty)}
+          className="h-7 rounded-md border border-input bg-transparent px-2 text-xs focus-visible:border-ring focus-visible:outline-none"
+          aria-label={`Difficulty for ${entry.template}`}
+        >
+          {DIFFICULTY_OPTIONS.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={() => onRemove(entry.template)}
+          className="text-muted-foreground hover:text-danger"
+          aria-label={`Remove ${entry.template}`}
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      {/* Per-mission parameters */}
+      {entry.params.length > 0 && (
+        <div className="flex flex-wrap gap-1 pl-6">
+          {entry.params.map((param, i) => (
+            <span
+              key={`${param}-${i}`}
+              className="glass flex items-center gap-1 rounded border border-white/10 px-1.5 py-0.5 font-mono text-[11px]"
+            >
+              {param}
+              <button
+                type="button"
+                onClick={() => onRemoveParam(entry.template, i)}
+                className="text-muted-foreground hover:text-danger"
+                aria-label={`Remove param ${param}`}
+              >
+                <X className="h-2.5 w-2.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-1 pl-6">
+        <input
+          type="text"
+          placeholder="Add param (e.g. viewDistance = 3000)"
+          value={paramInput}
+          onChange={(e) => setParamInput(e.target.value)}
+          onKeyDown={handleParamKeyDown}
+          className="flex-1 rounded border border-input bg-transparent px-2 py-0.5 font-mono text-xs focus-visible:border-ring focus-visible:outline-none"
+          aria-label={`Add parameter for ${entry.template}`}
+        />
+      </div>
     </div>
   );
 }
@@ -139,12 +189,30 @@ export function MissionsTab() {
   }
 
   function handleAddToRotation(template: string) {
-    setRotation((prev) => [...prev, { template, difficulty: "Regular" }]);
+    setRotation((prev) => [...prev, { template, difficulty: "Regular", params: [] }]);
   }
 
   function handleDifficultyChange(template: string, difficulty: Difficulty) {
     setRotation((prev) =>
       prev.map((m) => (m.template === template ? { ...m, difficulty } : m)),
+    );
+  }
+
+  function handleAddParam(template: string, param: string) {
+    setRotation((prev) =>
+      prev.map((m) =>
+        m.template === template ? { ...m, params: [...m.params, param] } : m,
+      ),
+    );
+  }
+
+  function handleRemoveParam(template: string, paramIndex: number) {
+    setRotation((prev) =>
+      prev.map((m) =>
+        m.template === template
+          ? { ...m, params: m.params.filter((_, i) => i !== paramIndex) }
+          : m,
+      ),
     );
   }
 
@@ -228,6 +296,8 @@ export function MissionsTab() {
                     entry={entry}
                     onRemove={handleRemoveFromRotation}
                     onDifficultyChange={handleDifficultyChange}
+                    onAddParam={handleAddParam}
+                    onRemoveParam={handleRemoveParam}
                   />
                 ))}
               </div>

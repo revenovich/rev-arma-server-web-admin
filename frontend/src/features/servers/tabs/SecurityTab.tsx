@@ -10,11 +10,12 @@ import { useServer, useUpdateServer } from "@/hooks/useServers";
 interface SecurityForm {
   verifySignatures: number;
   allowedFilePatching: number;
+  file_patching: boolean;
+  battle_eye: boolean;
+  kickDuplicate: boolean;
+  serverCommandPassword: string;
   filePatchingExceptions: string;
   allowedLoadFileExtensions: string;
-  battle_eye: boolean;
-  kickDuplicate: number;
-  serverCommandPassword: string;
 }
 
 export function SecurityTab() {
@@ -25,23 +26,26 @@ export function SecurityTab() {
   const [form, setForm] = useState<SecurityForm>({
     verifySignatures: 2,
     allowedFilePatching: 0,
+    file_patching: false,
+    battle_eye: true,
+    kickDuplicate: false,
+    serverCommandPassword: "",
     filePatchingExceptions: "",
     allowedLoadFileExtensions: "",
-    battle_eye: true,
-    kickDuplicate: 0,
-    serverCommandPassword: "",
   });
   const [initialized, setInitialized] = useState(false);
 
   if (server && !initialized) {
+    const s = server as Record<string, unknown>;
     setForm({
-      verifySignatures: server.verify_signatures ?? 2,
-      allowedFilePatching: server.allowed_file_patching ?? 0,
-      filePatchingExceptions: "",
-      allowedLoadFileExtensions: "",
-      battle_eye: server.battle_eye ?? true,
-      kickDuplicate: 0,
-      serverCommandPassword: "",
+      verifySignatures: (s.verify_signatures as number) ?? 2,
+      allowedFilePatching: (s.allowed_file_patching as number) ?? 0,
+      file_patching: (s.file_patching as boolean) ?? false,
+      battle_eye: (s.battle_eye as boolean) ?? true,
+      kickDuplicate: Boolean(s.kickDuplicate),
+      serverCommandPassword: (s.serverCommandPassword as string) ?? "",
+      filePatchingExceptions: ((s.filePatchingExceptions as string[]) ?? []).join("\n"),
+      allowedLoadFileExtensions: ((s.allowedLoadFileExtensions as string[]) ?? []).join("\n"),
     });
     setInitialized(true);
   }
@@ -51,8 +55,16 @@ export function SecurityTab() {
     await updateServer.mutateAsync({
       verify_signatures: form.verifySignatures,
       allowed_file_patching: form.allowedFilePatching,
+      file_patching: form.file_patching,
       battle_eye: form.battle_eye,
-      kickDuplicate: form.kickDuplicate,
+      kickDuplicate: form.kickDuplicate ? 1 : 0,
+      serverCommandPassword: form.serverCommandPassword || null,
+      filePatchingExceptions: form.filePatchingExceptions
+        ? form.filePatchingExceptions.split("\n").filter(Boolean)
+        : [],
+      allowedLoadFileExtensions: form.allowedLoadFileExtensions
+        ? form.allowedLoadFileExtensions.split("\n").filter(Boolean)
+        : [],
     });
   }
 
@@ -74,8 +86,11 @@ export function SecurityTab() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label htmlFor="verifySignatures" className="text-xs text-muted-foreground">
-              Verify Signatures (0=off, 1=v1+v2, 2=v2-only)
+              Verify Signatures
             </label>
+            <p className="text-[11px] text-muted-foreground/70">
+              Controls signature checking for mod PBO files. Off = no check, v1+v2 = both versions, v2 Only = Arma 3 format only.
+            </p>
             <select
               id="verifySignatures"
               value={form.verifySignatures}
@@ -89,8 +104,11 @@ export function SecurityTab() {
           </div>
           <div className="space-y-1.5">
             <label htmlFor="allowedFilePatching" className="text-xs text-muted-foreground">
-              Allowed File Patching (0=none, 1=HC only, 2=all)
+              Allowed File Patching
             </label>
+            <p className="text-[11px] text-muted-foreground/70">
+              Who can use file patching. None = disabled, HC Only = headless clients, All = all clients.
+            </p>
             <select
               id="allowedFilePatching"
               value={form.allowedFilePatching}
@@ -102,6 +120,20 @@ export function SecurityTab() {
               <option value={2}>All Clients</option>
             </select>
           </div>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <label id="file-patching-label" htmlFor="file_patching" className="text-sm">Enable File Patching</label>
+            <p className="text-[11px] text-muted-foreground/70">
+              Adds -filePatching to the server command line. Must be enabled for allowedFilePatching to take effect.
+            </p>
+          </div>
+          <Switch
+            id="file_patching"
+            aria-labelledby="file-patching-label"
+            checked={form.file_patching}
+            onCheckedChange={(checked) => setForm((prev) => ({ ...prev, file_patching: checked }))}
+          />
         </div>
       </Card>
 
@@ -118,11 +150,14 @@ export function SecurityTab() {
               onCheckedChange={(checked) => setForm((prev) => ({ ...prev, battle_eye: checked }))}
             />
           </div>
-          <div className="space-y-1.5">
-            <label htmlFor="kickDuplicate" className="text-xs text-muted-foreground">
-              Kick Duplicate Game IDs (0/1)
-            </label>
-            <Input id="kickDuplicate" type="number" min={0} max={1} value={form.kickDuplicate} onChange={(e) => setForm((prev) => ({ ...prev, kickDuplicate: parseInt(e.target.value) || 0 }))} />
+          <div className="flex items-center justify-between gap-3">
+            <label id="kick-duplicate-label" htmlFor="kickDuplicate" className="text-sm">Kick Duplicate Game IDs</label>
+            <Switch
+              id="kickDuplicate"
+              aria-labelledby="kick-duplicate-label"
+              checked={form.kickDuplicate}
+              onCheckedChange={(checked) => setForm((prev) => ({ ...prev, kickDuplicate: checked }))}
+            />
           </div>
         </div>
       </Card>
@@ -140,6 +175,37 @@ export function SecurityTab() {
             placeholder="None"
             value={form.serverCommandPassword}
             onChange={(e) => setForm((prev) => ({ ...prev, serverCommandPassword: e.target.value }))}
+          />
+        </div>
+      </Card>
+
+      {/* File Patching Exceptions & Load Extensions */}
+      <Card className="space-y-4 p-5">
+        <h3 className="section-label">File Patching Details</h3>
+        <div className="space-y-1.5">
+          <label htmlFor="filePatchingExceptions" className="text-xs text-muted-foreground">
+            File Patching Exceptions (one per line)
+          </label>
+          <textarea
+            id="filePatchingExceptions"
+            rows={3}
+            className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 font-mono text-sm focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            value={form.filePatchingExceptions}
+            onChange={(e) => setForm((prev) => ({ ...prev, filePatchingExceptions: e.target.value }))}
+            placeholder={"@CBA_A3\n@ace"}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="allowedLoadFileExtensions" className="text-xs text-muted-foreground">
+            Allowed Load File Extensions (one per line)
+          </label>
+          <textarea
+            id="allowedLoadFileExtensions"
+            rows={3}
+            className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 font-mono text-sm focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            value={form.allowedLoadFileExtensions}
+            onChange={(e) => setForm((prev) => ({ ...prev, allowedLoadFileExtensions: e.target.value }))}
+            placeholder={".paa\n.hpp"}
           />
         </div>
       </Card>
