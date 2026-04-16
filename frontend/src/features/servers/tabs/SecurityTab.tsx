@@ -36,7 +36,7 @@ export function SecurityTab() {
   const [initialized, setInitialized] = useState(false);
 
   if (server && !initialized) {
-    const s = server as Record<string, unknown>;
+    const s = server as unknown as Record<string, unknown>;
     setForm({
       verifySignatures: (s.verify_signatures as number) ?? 2,
       allowedFilePatching: (s.allowed_file_patching as number) ?? 0,

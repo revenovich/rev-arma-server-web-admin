@@ -56,7 +56,7 @@ export function NetworkTab() {
   const [initialized, setInitialized] = useState(false);
 
   if (server && !initialized) {
-    const s = server as Record<string, unknown>;
+    const s = server as unknown as Record<string, unknown>;
     setForm({
       MaxMsgSend: (s.MaxMsgSend as number) ?? DEFAULTS.MaxMsgSend,
       MaxSizeGuaranteed: (s.MaxSizeGuaranteed as number) ?? DEFAULTS.MaxSizeGuaranteed,
