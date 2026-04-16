@@ -43,7 +43,7 @@ export function useRefreshMissions() {
 export function useWorkshopDownload() {
   const queryClient = useQueryClient();
   return useMutation<{ ok: boolean; id: string }, Error, string>({
-    mutationFn: (id) => api.post("/missions/workshop", { id }),
+    mutationFn: (id) => api.post("/missions/workshop/", { id }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: MISSIONS_KEY });
       toast.success("Workshop download started");

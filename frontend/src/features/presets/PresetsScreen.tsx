@@ -17,11 +17,11 @@ export function PresetsScreen() {
   });
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
+    const formData = new FormData();
     acceptedFiles.forEach((file) => {
-      const formData = new FormData();
-      formData.append("file", file);
-      fetch("/api/presets/upload", { method: "POST", body: formData });
+      formData.append("files", file);
     });
+    fetch("/api/presets/upload", { method: "POST", body: formData });
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

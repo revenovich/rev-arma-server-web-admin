@@ -15,7 +15,7 @@ export function MissionsScreen() {
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const formData = new FormData();
     acceptedFiles.forEach((file) => formData.append("files", file));
-    fetch("/api/missions", { method: "POST", body: formData });
+    fetch("/api/missions/", { method: "POST", body: formData });
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

@@ -158,6 +158,15 @@ class Server:
                 stderr=asyncio.subprocess.STDOUT,
                 cwd=str(game_path),
             )
+        except NotImplementedError:
+            log.error(
+                "asyncio.create_subprocess_exec not supported on this event loop. "
+                "On Windows, ProactorEventLoop is required. "
+                "Set asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy()) "
+                "before starting the event loop.",
+                id=self.id,
+            )
+            return
         except OSError as exc:
             log.error("server start failed", id=self.id, error=str(exc))
             return
@@ -224,6 +233,11 @@ class Server:
                 )
                 self._hc_processes.append(proc)
                 log.info("headless client started", id=self.id, index=i + 1, pid=proc.pid)
+            except NotImplementedError:
+                log.error(
+                    "asyncio.create_subprocess_exec not supported on this event loop (Windows requires ProactorEventLoop)",
+                    id=self.id,
+                )
             except OSError as exc:
                 log.error("headless client start failed", id=self.id, error=str(exc))
 
