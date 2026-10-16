@@ -8,7 +8,7 @@ from typing import Any
 import httpx
 import structlog
 
-from app.core.paths import UnsafePathError, ensure_within, validate_name
+from app.core.paths import UnsafeListingError, UnsafePathError, ensure_within, validate_name
 
 log = structlog.get_logger()
 
@@ -93,16 +93,16 @@ def find_mod_folder(mod_name: str, steam_id: str | None, index: dict[str, Any]) 
 
 
 def _entry_name(item: dict[str, Any], url: str) -> str:
-    """Return a listing entry's name as one safe path component, else raise UnsafePathError."""
+    """Return a listing entry's name as one safe path component, else raise UnsafeListingError."""
     name = item["name"]
     # Caddy's browse listing appends "/" to directory names ("addons/").
     if item.get("is_dir", False) and name.endswith("/"):
         name = name[:-1]
     try:
         return validate_name(name)
-    except UnsafePathError:
+    except UnsafePathError as exc:
         log.warning("unsafe name in Caddy listing", url=url, name=item["name"])
-        raise
+        raise UnsafeListingError(f"Unsafe name in file server listing: {item['name']!r}") from exc
 
 
 async def _walk(
@@ -113,7 +113,7 @@ async def _walk(
     Returns list of (relative_path, file_url, size).
 
     Listing names become local paths, so one unsafe name (``..``, a separator, a
-    drive prefix) raises UnsafePathError for the whole folder rather than being
+    drive prefix) raises UnsafeListingError for the whole folder rather than being
     skipped: update_mod_folder deletes whatever the listing lacks, so a filtered
     listing could cost local files.
     """

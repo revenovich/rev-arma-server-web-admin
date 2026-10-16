@@ -26,8 +26,8 @@ async def update_mod_folder(
     Backslash normalization is applied when comparing local paths against
     server paths so Windows paths match the server's forward-slash listing.
 
-    An unsafe listing raises UnsafePathError before anything is downloaded or
-    removed.
+    An unsafe listing (UnsafeListingError) or a target that resolves outside
+    dest_path (UnsafePathError) raises before anything is downloaded or removed.
     """
     server_files = await list_mod_files(folder_url, auth)
     server_rel: dict[str, tuple[str, int]] = {

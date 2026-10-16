@@ -13,7 +13,7 @@ import httpx
 import pytest
 import respx
 
-from app.core.paths import UnsafePathError
+from app.core.paths import UnsafeListingError, UnsafePathError
 from app.services.mod_fetcher import (
     _list_dir,
     _normalize_name,
@@ -291,7 +291,7 @@ async def test_walk_strips_caddy_trailing_slash_on_dirs() -> None:
 async def test_walk_rejects_unsafe_listing_names(entry: dict[str, Any]) -> None:
     with respx.mock(assert_all_called=False) as router:
         _listing(router, ACE, [{"name": "mod.cpp", "is_dir": False, "size": 4}, entry])
-        with pytest.raises(UnsafePathError):
+        with pytest.raises(UnsafeListingError):
             await list_mod_files(ACE, AUTH)
         # Rejected without following the entry anywhere.
         assert [str(c.request.url) for c in router.calls] == [ACE]
@@ -302,7 +302,7 @@ async def test_walk_rejects_unsafe_name_in_subfolder() -> None:
     with respx.mock() as router:
         _listing(router, ACE, [{"name": "addons/", "is_dir": True}])
         _listing(router, ACE + "addons/", [{"name": "..\\..\\evil.dll", "is_dir": False}])
-        with pytest.raises(UnsafePathError):
+        with pytest.raises(UnsafeListingError):
             await list_mod_files(ACE, AUTH)
 
 
@@ -333,7 +333,7 @@ async def test_download_mod_folder_rejects_dotdot_file(tmp_path: Path) -> None:
             {"name": "../evil.txt", "is_dir": False, "size": 5},
         ])
         files = _serve_any_file(router)
-        with pytest.raises(UnsafePathError):
+        with pytest.raises(UnsafeListingError):
             await download_mod_folder(ACE, dest, AUTH)
 
     assert not files.called  # not even the valid mod.cpp: the listing as a whole is refused
@@ -349,7 +349,7 @@ async def test_download_mod_folder_rejects_dotdot_dir(tmp_path: Path) -> None:
         # Where the ".." folder's listing would be fetched from (httpx collapses @ace/../).
         _listing(router, CADDY, [{"name": "evil.dll", "is_dir": False, "size": 5}])
         files = _serve_any_file(router)
-        with pytest.raises(UnsafePathError):
+        with pytest.raises(UnsafeListingError):
             await download_mod_folder(ACE, dest, AUTH)
 
     assert not files.called

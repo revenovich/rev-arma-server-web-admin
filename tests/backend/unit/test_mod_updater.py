@@ -9,7 +9,7 @@ import httpx
 import pytest
 import respx
 
-from app.core.paths import UnsafePathError
+from app.core.paths import UnsafeListingError, UnsafePathError
 from app.services.mod_updater import update_mod_folder
 
 
@@ -243,7 +243,7 @@ async def test_update_mod_folder_unsafe_listing_writes_and_removes_nothing(
         for url, items in listings.items():
             _listing(router, url, items)
         files = _serve_any_file(router)
-        with pytest.raises(UnsafePathError):
+        with pytest.raises(UnsafeListingError):
             await update_mod_folder(ACE, mod_dir, auth=("", ""))
 
     assert not files.called

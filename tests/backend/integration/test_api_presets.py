@@ -329,7 +329,7 @@ def test_update_mods_rejects_traversal(
 def test_update_mods_rejects_unsafe_caddy_listing(
     caddy_client: TestClient, tmp_path: Path
 ) -> None:
-    """Names in Caddy's own listing are untrusted too: 400, nothing written or removed."""
+    """Names in Caddy's own listing are untrusted too: 502, nothing written or removed."""
     mod_dir = tmp_path / "downloads" / "shared" / "@ace"
     mod_dir.mkdir(parents=True)
     (mod_dir / "old.pbo").write_bytes(b"old")  # absent from the listing: would be removed
@@ -349,7 +349,7 @@ def test_update_mods_rejects_unsafe_caddy_listing(
         resp = caddy_client.post(
             "/api/presets/update-mods", json={"group": "shared", "mod": "@ace"}
         )
-    assert resp.status_code == 400
+    assert resp.status_code == 502  # the file server's fault, not the request's
     assert "evil.txt" in resp.json()["detail"]
     assert not files.called
     assert [p for p in (tmp_path / "downloads").rglob("*") if p.is_file()] == [mod_dir / "old.pbo"]
