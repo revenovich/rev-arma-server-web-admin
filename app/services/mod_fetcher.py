@@ -8,6 +8,8 @@ from typing import Any
 import httpx
 import structlog
 
+from app.core.paths import UnsafePathError, ensure_within, validate_name
+
 log = structlog.get_logger()
 
 # Aggressive normalization: strip @, lowercase, remove all non-alphanumeric.
@@ -90,17 +92,35 @@ def find_mod_folder(mod_name: str, steam_id: str | None, index: dict[str, Any]) 
     return index["by_name"].get(norm)
 
 
+def _entry_name(item: dict[str, Any], url: str) -> str:
+    """Return a listing entry's name as one safe path component, else raise UnsafePathError."""
+    name = item["name"]
+    # Caddy's browse listing appends "/" to directory names ("addons/").
+    if item.get("is_dir", False) and name.endswith("/"):
+        name = name[:-1]
+    try:
+        return validate_name(name)
+    except UnsafePathError:
+        log.warning("unsafe name in Caddy listing", url=url, name=item["name"])
+        raise
+
+
 async def _walk(
     url: str, client: httpx.AsyncClient, prefix: str = ""
 ) -> list[tuple[str, str, int]]:
     """Recursively list all files under a folder URL.
 
     Returns list of (relative_path, file_url, size).
+
+    Listing names become local paths, so one unsafe name (``..``, a separator, a
+    drive prefix) raises UnsafePathError for the whole folder rather than being
+    skipped: update_mod_folder deletes whatever the listing lacks, so a filtered
+    listing could cost local files.
     """
     items = await _list_dir(url, client)
     results: list[tuple[str, str, int]] = []
     for item in items:
-        name = item["name"]
+        name = _entry_name(item, url)
         rel = prefix + name
         if item.get("is_dir", False):
             sub = await _walk(url + name + "/", client, rel + "/")
@@ -168,11 +188,16 @@ async def download_mod_folder(
     skipped = 0
     bytes_dl = 0
 
+    # Resolve every destination before writing any: a symlink inside dest_path can
+    # still point out of it even when every listing name is valid.
+    targets: list[tuple[str, Path, str, int]] = []
     for rel_path, file_url, server_size in files:
         # Normalize backslashes so local vs server path comparison works on Windows
         norm_rel = rel_path.replace("\\", "/")
-        local = dest_path / Path(norm_rel)
+        local = ensure_within(dest_path, dest_path / Path(norm_rel))
+        targets.append((norm_rel, local, file_url, server_size))
 
+    for norm_rel, local, file_url, server_size in targets:
         if local.exists() and not overwrite:
             skipped += 1
             if on_file:

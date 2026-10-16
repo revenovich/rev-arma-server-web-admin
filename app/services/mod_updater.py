@@ -5,6 +5,7 @@ from typing import Any
 
 import structlog
 
+from app.core.paths import ensure_within
 from app.services.mod_fetcher import download_file, list_mod_files
 
 log = structlog.get_logger()
@@ -24,11 +25,17 @@ async def update_mod_folder(
 
     Backslash normalization is applied when comparing local paths against
     server paths so Windows paths match the server's forward-slash listing.
+
+    An unsafe listing raises UnsafePathError before anything is downloaded or
+    removed.
     """
     server_files = await list_mod_files(folder_url, auth)
     server_rel: dict[str, tuple[str, int]] = {
         rel.replace("\\", "/"): (url, size) for rel, url, size in server_files
     }
+    # Check every destination up front so a symlink pointing out of dest_path
+    # aborts the update before the removal pass below runs.
+    local_paths = {rel: ensure_within(dest_path, dest_path / Path(rel)) for rel in server_rel}
 
     downloaded = 0
     skipped = 0
@@ -38,7 +45,7 @@ async def update_mod_folder(
 
     # Download stale / missing files
     for rel_path, (file_url, server_size) in server_rel.items():
-        local = dest_path / Path(rel_path)
+        local = local_paths[rel_path]
         needs_dl = not local.exists()
         if not needs_dl and server_size:  # size=0 means unknown — skip comparison
             needs_dl = local.stat().st_size != server_size
