@@ -1,8 +1,8 @@
 """Unit tests for mod_reporter.build_missing_report."""
 from __future__ import annotations
 
-from app.schemas.preset import Comparison, ModEntry, MissingReport, PresetGroup
-from app.services.mod_reporter import build_missing_report, _normalize_name
+from app.schemas.preset import Comparison, ModEntry, PresetGroup
+from app.services.mod_reporter import _normalize_name, build_missing_report
 
 
 def _mod(name: str, steam_id: str | None = None) -> ModEntry:

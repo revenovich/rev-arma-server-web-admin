@@ -29,6 +29,10 @@ coverage.json
 frontend/dist/
 frontend/node_modules/
 
+# Playwright output
+frontend/playwright-report/
+frontend/test-results/
+
 # IDE
 .vscode/
 .idea/

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, act } from "@testing-library/react";
-import { AuthProvider, useAuth } from "./useAuth";
+import { render, renderHook, screen, waitFor, act } from "@testing-library/react";
+import { AuthProvider } from "./AuthProvider";
+import { useAuth } from "./useAuth";
 import { api, ApiError } from "@/lib/api";
 
 // Mock the api module
@@ -178,14 +179,9 @@ describe("AuthProvider", () => {
 
 describe("useAuth (outside provider)", () => {
   it("returns safe defaults when used outside AuthProvider", () => {
-    let result: ReturnType<typeof useAuth> | undefined;
-    function TestComponent() {
-      result = useAuth();
-      return null;
-    }
-    render(<TestComponent />);
-    expect(result!.isAuthenticated).toBe(true);
-    expect(result!.isChecking).toBe(false);
-    expect(result!.authRequired).toBe(false);
+    const { result } = renderHook(() => useAuth());
+    expect(result.current.isAuthenticated).toBe(true);
+    expect(result.current.isChecking).toBe(false);
+    expect(result.current.authRequired).toBe(false);
   });
 });

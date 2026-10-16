@@ -2,18 +2,17 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
 import respx
-import httpx
 
 from app.services.workshop import (
     _WORKSHOP_API_URL,
     download_workshop_mission,
     get_workshop_file_info,
 )
-
 
 # ---------------------------------------------------------------------------
 # get_workshop_file_info

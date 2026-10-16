@@ -5,7 +5,7 @@ import asyncio
 
 import pytest
 
-from app.services.pubsub import EventBus, _QUEUE_MAX
+from app.services.pubsub import _QUEUE_MAX, EventBus
 
 
 @pytest.mark.asyncio

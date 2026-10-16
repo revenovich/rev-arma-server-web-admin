@@ -5,10 +5,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.domain.server import Server, _BINARIES, _make_id
-from app.schemas.server import ServerSchema
 from app.core.config import Settings
-
+from app.domain.server import _BINARIES, Server, _make_id
+from app.schemas.server import ServerSchema
 
 # ---------------------------------------------------------------------------
 # Fixtures

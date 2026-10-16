@@ -5,7 +5,8 @@ import { queryClient } from "@/lib/query-client";
 import { routes } from "@/router";
 import { getTheme, setTheme } from "@/lib/theme";
 import { useServerStatus } from "@/hooks/useServerStatus";
-import { AuthProvider, useAuth } from "@/features/auth/useAuth";
+import { AuthProvider } from "@/features/auth/AuthProvider";
+import { useAuth } from "@/features/auth/useAuth";
 import { LoginScreen } from "@/features/auth/LoginScreen";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 

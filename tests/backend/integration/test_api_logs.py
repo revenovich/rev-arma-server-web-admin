@@ -120,7 +120,7 @@ def test_delete_log_not_found(client: TestClient) -> None:
 
 def test_view_log_oserror_returns_500(client_with_log: tuple) -> None:
     """If the log file can't be read (e.g., permissions), the handler returns 500."""
-    from unittest.mock import patch, mock_open
+    from unittest.mock import patch
     c, _ = client_with_log
     with patch("builtins.open", side_effect=OSError("permission denied")):
         resp = c.get("/api/logs/arma3server_2024.rpt/view")

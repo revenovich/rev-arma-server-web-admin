@@ -2,9 +2,11 @@
 
 Audit of `master` @ `6485de8` (2026-10-16). Every item below was traced in code; items marked **✔ reproduced** were also confirmed by running the code (TestClient probe, test suite, linters). Line numbers are as of that commit.
 
+_Update: the CI failures in §3 have since been fixed. CI's checks now pass on Linux. Everything else is as audited._
+
 ## TL;DR
 
-The rewrite has a sound architecture and good unit-test coverage, but **several headline features don't work end-to-end**, **CI has been red on every recent push**, and there are **path-traversal holes that let a request delete or write files outside their directories**:
+The rewrite has a sound architecture and good unit-test coverage, but **several headline features don't work end-to-end**, and there are **path-traversal holes that let a request delete or write files outside their directories**:
 
 1. **Security:** `POST /api/presets/update-mods` can be steered into deleting files across the game install (S0), and mission upload writes outside `mpmissions` (S1). Auth is off by default and silently stays off when the app is started from another directory (S2).
 2. **Servers can't be run reliably:**
@@ -20,7 +22,7 @@ The rewrite has a sound architecture and good unit-test coverage, but **several 
    - Switching servers saves A's form onto B (P8).
    - One invalid record in `servers.json` drops every record after it on the next save (P19).
 5. **Live updates:** WebSocket "servers" events wipe the UI's server list instead of refreshing it (P3).
-6. **CI on Linux:** ruff (118 errors, 96 of them intentional schema names), one Windows-only-passing test, and two ESLint errors.
+6. ~~**CI on Linux:** ruff (118 errors, 96 of them intentional schema names), one Windows-only-passing test, and two ESLint errors.~~ **Fixed** (§3).
 
 Unit tests mock both sides of each contract (frontend tests mock `api`, E2E mocks every `/api/**` route), which is why the suites are green while the integrated app is broken. Contract-level tests are the biggest missing piece.
 
@@ -162,24 +164,24 @@ Also on the security side:
 
 ## 3. Tooling, CI and test health
 
-**CI has failed on each of the last 5 pushes to `master` (latest: run #38 on `6485de8`).** All of these reproduce locally on Linux:
+**CI failed on every one of its 38 runs up to `6485de8` (run #38).** The blocking failures are now fixed, and every CI step passes locally on Linux with the versions CI uses (Python 3.13, Node 22, latest ruff):
 
 | Check | Result on Linux | Cause / fix |
 |---|---|---|
-| `ruff check app/ tests/` | **118 errors** | 96× `N815` are the *intentional* camelCase schema fields (servers.json parity), so add `"app/schemas/**" = ["N815"]` to `per-file-ignores`. The other 22 are real: unsorted/unused imports, a missing EOF newline, and 1× `N806`. 21 are auto-fixable. |
-| `pytest` | **1 failed**, 337 passed, 3 skipped (same on Python 3.9.25 and 3.13) | `test_list_mod_updates_backslash_path_normalised` is right. `mod_fetcher.list_mod_updates` only maps `/`→`os.sep`, so on Linux a server path `subdir\file.bisign` is treated as a literal filename and always reported stale. It passes on Windows, which is why it went unnoticed. The function is **not called by any route** (`update-mods` uses `mod_updater.update_mod_folder`), so either fix it (`rel_path.replace("\\", "/")`) or delete it together with its tests. |
-| Coverage | 83.37% (gate 80%) | OK |
+| `ruff check app/ tests/` | **Pass** (was 118 errors) | **Fixed.** 96× `N815` were the *intentional* camelCase schema fields (servers.json parity), so `pyproject.toml` now has `"app/schemas/**" = ["N815"]` under `per-file-ignores`. The other 22 were real: 21 auto-fixed import/EOF-newline errors, plus 1× `N806` (`_MAX_FILE_SIZE` inside `upload_missions`, now a module constant). |
+| `pytest` | **Pass**: 338 passed, 3 skipped (was 1 failed) | **Fixed.** `mod_fetcher.list_mod_updates` only mapped `/`→`os.sep`, so on Linux a server path `subdir\file.bisign` was treated as a literal filename and always reported stale. It now normalises `\` to `/` before joining, as `download_mod_folder` already did. The function is still **not called by any route** (`update-mods` uses `mod_updater.update_mod_folder`); see "Unused code" in §2. |
+| Coverage | 83.36% (gate 80%) | OK |
 | `mypy app/` | 19 errors (non-blocking in CI) | Mostly `Returning Any` from `request.app.state`. Also real type bugs: `missions.py:44-45` passes a `float` where the schema wants `datetime`, and `mod_reporter.py:28,39` has a `PresetGroup` vs `str` mismatch. Recent mypy also rejects `python_version = "3.9"` in `pyproject.toml`. |
-| `npm run lint` | **2 errors**, 1 warning | `useAuth.tsx:106` (`react-refresh/only-export-components`: move `useAuth` out of the provider file) and `useAuth.test.tsx:183` (`react-hooks/globals`). The warning is `react-hooks/incompatible-library` on RHF `watch()` in `GeneralTab`. |
-| `npm run typecheck` / `vitest` / `build` | Pass: 459 tests, 32 files | The main bundle is 852 KB raw / **257.7 KB gzip, 86% of the 300 KB gate**. There's no code-splitting. |
+| `npm run lint` | **0 errors**, 1 warning (was 2 errors) | **Fixed.** `react-refresh/only-export-components`: `useAuth.tsx` exported both the provider and the hook. It is now split into `AuthProvider.tsx`, `useAuth.ts` and `auth-context.ts`. `react-hooks/globals`: `useAuth.test.tsx` assigned an outer variable during render, and now uses `renderHook`. The remaining warning (non-blocking) is `react-hooks/incompatible-library` on RHF `watch()` in `GeneralTab`. |
+| `npm run typecheck` / `vitest` / `build` | Pass: 459 tests, 32 files, 85.98% line coverage | CI's test step was also broken, though nobody noticed because lint failed first: `--coverage-reporter=text` is not a Vitest 4 option. It is now `--coverage.reporter=text`. The main bundle is 852 KB raw / **255 KB gzip (`gzip -c`, as CI measures it), 83% of the 300 KB gate**. There's no code-splitting. |
 | `npm audit` | 34 vulns (1 critical, 18 high) | Almost all come through the `shadcn` CLI being a runtime `dependency` (it pulls in MCP SDK, hono, ts-morph, undici, etc.). Moving it to `devDependencies` and running `npm audit fix` clears most of them. The rest are direct dev-tool deps (`vite` 8.0.8 Windows advisories, `postcss`). |
 | Playwright E2E | Not run in CI | All 36 snapshots are `*-chromium-win32.png` and fail as "missing" on Linux. Several specs still navigate to the removed `/info` tab and expect "Info"/"Headless" tabs. `missions.spec.ts:40` mocks `/api/missions` without the slash and never intercepts. The mocks encode wrong contracts: PUT accepts any body, steamcmd returns `installed: true`, and WS pushes `server_state` events the backend never sends. |
 
 Other test-suite observations:
 - The tests are green while P1/P3/P15 are broken because each layer mocks the other: frontend unit tests mock `useUpdateServer`, and E2E mocks every route. Add a thin contract layer, e.g. Vitest tests that replay recorded backend responses and WS envelopes, or a single Playwright smoke run against the real backend.
 - Each server tab has two overlapping test files (e.g. `AdvancedTab.test.tsx` and `advanced-tab.test.tsx`).
-- `frontend/playwright-report/` and `frontend/test-results/` are committed. Add them to `.gitignore`.
-- CI triggers on a `python-rewrite` branch that no longer exists.
+- ~~`frontend/playwright-report/` and `frontend/test-results/` are committed.~~ **Fixed:** both are in `.gitignore` and no longer tracked.
+- ~~CI triggers on a `python-rewrite` branch that no longer exists.~~ **Fixed:** CI triggers only on `master` pushes and PRs into `master`.
 - Starlette now warns that `TestClient` over `httpx` is deprecated.
 
 ## 4. Documentation drift
@@ -227,7 +229,7 @@ Other test-suite observations:
 ## 6. Suggested order of work
 
 1. **Close the destructive holes now**: S0 (`update-mods` and the other preset path joins), S1 (upload filename), S2 (fail-open auth / CWD-relative config). Until then, don't expose the panel beyond localhost or a VPN.
-2. **Make CI green**: ruff `N815` ignore plus autofix, fix or delete `list_mod_updates`, and the two ESLint errors. All are small and unblock everything else.
+2. ~~**Make CI green**: ruff `N815` ignore plus autofix, fix or delete `list_mod_updates`, and the two ESLint errors.~~ **Done** (§3); `list_mod_updates` was fixed, not deleted.
 3. **Make the core loop work**: P5 (drain stdout), P4 (query port), P13 (Stop button), P6 (TimeoutError), P1 (partial PUT), P3 (WS payload), P22 (no reload in prod). Add one integration test per fix that exercises the *real* contract.
 4. **Stop data loss and corruption**: P19 (`servers.json` load/save), P7 and P23 (id collisions and re-keying), P8 (stale form across servers, rename navigation), P9 (validation), P10 (cfg escaping), P14 (`template`).
 5. **Wire config coverage (P2, P21)** with a config-preview endpoint and golden tests, then fix or hide the dead UI (P15, P16, P18, P20).
