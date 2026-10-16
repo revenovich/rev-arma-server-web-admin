@@ -49,6 +49,8 @@ ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["N802", "N803"]
+# camelCase fields mirror servers.json from the old Node app — never rename them.
+"app/schemas/**" = ["N815"]
 
 [tool.mypy]
 python_version = "3.9"

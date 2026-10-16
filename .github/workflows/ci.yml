@@ -4,11 +4,9 @@ on:
   push:
     branches:
       - master
-      - python-rewrite
   pull_request:
     branches:
       - master
-      - python-rewrite
 
 permissions:
   contents: read
@@ -71,7 +69,7 @@ jobs:
 
       - name: Test
         working-directory: frontend
-        run: npm run test -- --coverage --coverage-reporter=text
+        run: npm run test -- --coverage --coverage.reporter=text
         env:
           CI: true
 

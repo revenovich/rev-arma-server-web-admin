@@ -12,7 +12,6 @@ from app.schemas.server_config import (
 )
 from app.schemas.ws import WsEnvelope
 
-
 # ---------------------------------------------------------------------------
 # BasicConfigSchema
 # ---------------------------------------------------------------------------

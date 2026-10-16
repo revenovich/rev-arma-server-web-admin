@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import re
 from collections.abc import Callable
 from pathlib import Path
@@ -127,7 +126,8 @@ async def list_mod_updates(
     all_files = await list_mod_files(folder_url, auth)
     stale: list[tuple[str, str, int]] = []
     for rel_path, file_url, server_size in all_files:
-        local = dest_path / rel_path.replace("/", os.sep if hasattr(os, "sep") else "/")
+        # Normalize backslashes so Windows-style server paths resolve on Linux too
+        local = dest_path / Path(rel_path.replace("\\", "/"))
         if not local.exists():
             stale.append((rel_path, file_url, server_size))
         elif server_size and local.stat().st_size != server_size:

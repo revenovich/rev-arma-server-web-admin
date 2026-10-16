@@ -1,290 +1,124 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Branch context
+Web admin panel for Arma dedicated servers: **FastAPI backend** (`app/`, port 9500) + **React 19 / Vite 8 / TypeScript / Tailwind v4 / shadcn (Base UI)** frontend (`frontend/`, dev port 9510). In production the backend serves the built SPA from `frontend/dist/` as a single process. The Node.js/Express + Backbone app this replaced is gone from `master`.
 
-**Active branch**: `master` — Node.js/Express + Backbone.js fully replaced by FastAPI + React 18/Vite/TypeScript.
-**Phase status**: ALL 5 PHASES COMPLETE ✅ (338 backend tests passing, 3 skipped; 447 frontend Vitest tests; 75 E2E Playwright tests; 80.03% backend coverage; 85.98% frontend line coverage).
-See `PLAN.md` for the full step checklist and all architectural decisions.
+- `PLAN.md` — original rewrite plan, architectural decisions ("do not re-litigate" list), phase checklist.
+- `docs/PROJECT_HEALTH.md` — **current open problems, risks and upgrade candidates (audited 2026-10-16)**. Read it before trusting the "all phases complete" claims in `PLAN.md`: several UI features are not actually wired end-to-end.
 
-## Current state (as of 2026-04-16)
+## Commands
 
-- Backend: FastAPI on port 9500, all routes implemented and tested.
-- Frontend: React 18 + Vite on port 9510 (dev), served from `frontend/dist/` (prod).
-- Tests: 338 backend tests pass (`python -m pytest tests/ -q`), 3 skipped (Linux symlink tests on Windows); 447 frontend Vitest tests pass (`cd frontend && npx vitest run`).
-- Coverage: 80.03% backend (`fail_under = 80` enforced via `pyproject.toml`); 85.98% frontend line coverage.
-- Auth: Custom login screen with dedicated `GET /api/auth` probe endpoint (no credentials needed).
-- Theme: Dark mode is the **CSS default** — no class or JS required. Light mode only when `.light` is on `<html>`.
-- UI: Iris glassmorphism design with animated gradient background, translucent glass surfaces, framer-motion page transitions, and mobile hamburger sidebar.
-- Deployment: `frontend/dist/` is gitignored. Server must run `cd frontend && npm run build` after every `git pull`.
-
-## What to do in a new session
-
-- **Bug fix**: Read the relevant file(s) first. Run `python -m pytest tests/ -q` before and after to confirm no regressions. Check coverage hasn't dropped below 80%.
-- **New feature**: Follow PLAN.md architectural decisions. Write tests first (TDD). Update this file and PLAN.md with what changed.
-- **Frontend change**: Run `cd frontend && npm run typecheck && npm run lint` after edits. For UI changes, start dev server and test in browser. Run `cd frontend && npx vitest run` to verify tests.
-- **New API route**: Add to `app/api/`, add integration test in `tests/backend/integration/`, re-check coverage.
-- **After any frontend change on the server**: `cd frontend && npm run build` then restart the Python server.
-
-## Known non-obvious bugs (already fixed — don't re-introduce)
-
-| Bug | File | Fix |
-|-----|------|-----|
-| `MOD_SCAN_GLOB` brace expansion | `app/domain/mods.py` | Python `Path.glob()` doesn't support `{a,b}` syntax. Use multiple explicit patterns with a `seen` set. |
-| `GET /{name}` wildcard intercepting literal routes | `app/api/presets.py` | FastAPI evaluates routes in registration order. `/{name}` MUST be the last `GET` route in the router. |
-| `_is_junction()` using `path.stat()` | `app/services/mod_linker.py` | `stat()` follows junctions. Use `path.lstat()` to get the junction's own attributes. |
-| `structlog.stdlib.add_logger_name` crash | `app/core/logging.py` | Requires `stdlib.LoggerFactory`. Not in processor chain — use `PrintLoggerFactory` instead. |
-| Auth lockout state polluting tests | `tests/backend/unit/test_auth.py` | `app.api._fail_counts` and `_fail_times` are module-level dicts. Clear them in test setup/teardown. |
-| Auth probe using protected endpoint | `frontend/src/features/auth/useAuth.tsx` | Old probe called `GET /api/servers` (requires auth) — non-401 errors bypassed login entirely. Fixed: probe `GET /api/auth` (no auth needed, returns `{auth_required: bool}`). |
-| Dark mode not applying | `frontend/src/styles/` | Dark was conditional on `.dark` class set by JS — caused white flash and permanent white if localStorage had "light". Fixed: dark is now `:root` default in CSS, light mode requires `.light` class only. |
-| `asyncio.TimeoutError` not caught in Python 3.9 | `app/api/ws.py` | `asyncio.TimeoutError` ≠ builtin `TimeoutError` before Python 3.11. The 30s keepalive ping was never firing — caught as unhandled exception instead. Fixed: `except (TimeoutError, asyncio.TimeoutError)`. |
-| All API list endpoints getting 307 redirect + auth drop | `frontend/src/hooks/` | FastAPI routes defined as `@router.get("/")` under a prefix live at `/api/X/`. Calls to `/api/X` got a 307 redirect and the `Authorization` header was dropped. Fixed: always use trailing slash in all frontend API calls. |
-| Frontend type fields not matching backend schema | `frontend/src/types/api.ts` | `Mission.filename` → `Mission.name`/`missionName`/`worldName`; `LogEntry.filename` → `LogEntry.name`; `LogEntry.lastModified` → `LogEntry.modified`; `Mod.steamId` removed, `Mod.formattedSize` added. |
-| `index.html` cached by browser after rebuild | `app/main.py` | `spa_fallback` served `index.html` with no cache headers. Browser kept serving old asset hashes. Fixed: added `Cache-Control: no-store`. |
-| `Preset` schema missing `source_file`/`mod_count` | test helpers | `_preset()` helper must pass `source_file` and `mod_count`; `groups` field does not exist. |
-| Switch thumb invisible in dark-default theme | `frontend/src/components/ui/switch.tsx` | `dark:` Tailwind variants require a `.dark` class on `<html>`. Our theme uses `:root` defaults without any class. `bg-background` (dark surface) on thumb was invisible against dark track. Fixed: removed `dark:` prefixes; use `data-checked:bg-primary-foreground data-unchecked:bg-foreground` directly. |
-| `availableMods` always empty in ModsTab | `frontend/src/features/servers/tabs/ModsTab.tsx` | State was `useState<string[]>([])` — never populated from `useMods()` hook. Fixed: derive `availableMods` by filtering `allMods` against the `activeSet`. |
-| Missions stored as strings losing difficulty | `frontend/src/features/servers/tabs/MissionsTab.tsx` | Backend `server_config.py` stores missions as `{template, difficulty}` objects but old frontend code treated them as plain strings. Fixed: `parseMissions()` handles both string entries and `{template, difficulty}` objects for backward compatibility. |
-| Entire ServerCard was a `<Link>` | `frontend/src/components/servers/ServerCard.tsx` | Wrapping the full card in `<Link>` made it impossible to place action buttons without triggering navigation. Fixed: outer `<div>`, title area is `<Link>`, bottom row contains action buttons. |
-| `asChild` prop rejected by Base UI `DialogTrigger`/`AlertDialogTrigger` | `AddServerDialog.tsx`, `ServerDetailScreen.tsx` | Base UI uses a `render` prop instead of Radix's `asChild` pattern. `asChild` is unknown to Base UI's types. Fixed: `<DialogTrigger render={<Button />}>`, `<DialogClose render={<Button />}>`, `<AlertDialogTrigger render={<Button />}>`. |
-| Clone/create server 405 | `useServers.ts` | `POST /api/servers` (no trailing slash) got 405. FastAPI collection routes need trailing slash. Fixed: `api.post("/servers/", payload)`. |
-| `NotImplementedError` on `server.start()` | `app/main.py` | Windows + Python 3.9's `SelectorEventLoop` doesn't support `asyncio.create_subprocess_exec`. Fixed: `asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())` at module level on Windows. |
-| Duplicate fields across tabs / wrong controls | All server detail tabs | InfoTab had `battle_eye`, `verify_signatures`, `file_patching`, `motd` — these belong in Security/Advanced tabs. Boolean fields like `kickDuplicate`, `loopback`, `upnp` were number inputs, not switches. `verify_signatures` was a raw number input, not a dropdown. Fixed: consolidated fields to logical tabs, replaced number inputs with switches/dropdowns, merged HeadlessTab into AdvancedTab, renamed InfoTab to GeneralTab. |
-| Missing mod detection | `ModsTab.tsx` | Active mods not found on filesystem showed no warning. Fixed: cross-reference `server.mods` against `useMods()` scan; show orange "Missing" badge + strikethrough for phantom mods. |
-| Per-mission params not written to server.cfg | `server_config.py`, `MissionsTab.tsx` | Backend ignored `params` in mission entries; frontend had no UI to add them. Fixed: `server_config.py` now writes per-mission params inside `Mission_X` blocks; `MissionsTab` has chip-style add/remove UI for params. |
-
----
-
-## Python backend (Phase 1 — complete)
-
-### Run the dev server
+Start the backend and run backend tests from the **repo root**: `config.json` and `servers.json` are resolved relative to the CWD. Don't use `python -m app.main` or `--reload` for production; it hard-codes `reload=True`, and every reload stops all running Arma servers.
 
 ```bash
-# Install deps (first time) — requires Python 3.9+
-pip install -e .
-# OR with uv: uv sync
-
-# Start backend (hot-reload)
+# Backend — Python >=3.9 (.python-version pins 3.9; CI uses 3.13). Code must stay 3.9-compatible.
+uv sync                                   # runtime + dev deps (dev deps live under [tool.uv])
+# or: pip install -e . && pip install pytest pytest-asyncio pytest-cov respx ruff mypy
 uvicorn app.main:app --reload --port 9500
+python -m pytest tests/ -q                                          # all backend tests
+python -m pytest tests/backend/unit/test_server.py -q               # one file
+python -m pytest tests/backend/unit/test_server.py::test_name -q    # one test
+python -m pytest tests/ -q -k "preset and not ws"                   # by keyword
+python -m pytest tests/ -q --cov=app --cov-report=term-missing      # coverage (fail_under=80, app/main.py omitted)
+ruff check app/ tests/
+mypy app/ --ignore-missing-imports        # CI runs this with continue-on-error
 
-# OR run as module (uses config.json port/host)
-python -m app.main
-
-# Run all backend tests
-python -m pytest tests/ -q
-
-# Run with coverage
-python -m pytest tests/ -q --cov=app --cov-report=term-missing
-```
-
-### Config
-
-Copy `config.json.example` to `config.json` and set `game`, `path`, `port`, `type`.
-The app starts without `config.json` but `path` will be empty (mods/missions won't scan).
-
-### Architecture
-
-Entry point: `uvicorn app.main:app`
-
-```
-app/
-├── core/
-│   ├── config.py        # pydantic-settings Settings (reads config.json + ARMA_* env vars)
-│   ├── paths.py         # Path helpers: servers.json, mods dir, missions dir, logs dir
-│   └── logging.py       # structlog configure_logging() + AccessLogMiddleware
-├── schemas/
-│   ├── server.py        # Persisted ServerSchema (extra="allow", exact camelCase/snake_case)
-│   ├── server_config.py # Full server.cfg schema (grouped sub-models)
-│   ├── basic_config.py  # basic.cfg / Arma3.cfg schema + BANDWIDTH_PRESETS
-│   ├── server_profile.py# .Arma3Profile schema (20+ DifficultyOptions flags)
-│   ├── game_types.py    # Per-game feature flags, Steam app IDs
-│   ├── preset.py        # ModEntry, Preset, Comparison, MissingReport, LinkStatus, NameCheckResult
-│   ├── mission.py       # MissionSchema: name, missionName, worldName, size, sizeFormatted, dateCreated, dateModified
-│   ├── mod.py           # ModSchema: name, size, formattedSize, modFile, steamMeta
-│   ├── log.py           # LogSchema: name, path, size, formattedSize, created, modified
-│   └── ...              # settings.py, ws.py
-├── domain/
-│   ├── manager.py       # Manager: load/save servers.json, add/update/remove/auto_start
-│   ├── server.py        # Server: start/stop, config writing, A2S polling, to_json()
-│   ├── config_writer/   # server_config.py, basic_config.py, profile_config.py
-│   ├── missions.py      # list/save/delete .pbo files
-│   ├── mods.py          # scan mod folders (MOD_SCAN_GLOB)
-│   ├── logs.py          # list/delete .rpt logs (20-log retention, Linux only)
-│   └── settings.py      # get_settings_schema() → camelCase dict for frontend
-├── services/
-│   ├── pubsub.py        # EventBus: asyncio.Queue per WS connection, bounded fan-out
-│   ├── a2s.py           # python-a2s wrapper → {online, players, maxPlayers, mission, map}
-│   ├── steamcmd.py      # SteamCMD subprocess wrapper, streams progress to EventBus
-│   ├── workshop.py      # Steam Workshop file info + download
-│   ├── preset_parser.py # Parse Arma Launcher .html → Preset (xml.etree, regex steam ID)
-│   ├── preset_compare.py# compare_presets() → Comparison (steam_id-first mod identity)
-│   ├── mod_linker.py    # junction/symlink create/remove (lstat() not stat() on Windows!)
-│   ├── mod_fetcher.py   # httpx.AsyncClient Caddy downloads (Caddy JSON guard, size=0 fix)
-│   ├── mod_migrator.py  # Move mod folders between groups (remove junction BEFORE move)
-│   ├── mod_cleaner.py   # Find/delete orphan mod folders
-│   ├── mod_reporter.py  # build_missing_report() — MissingMod.group field is critical
-│   └── mod_updater.py   # Re-download stale/missing files, delete local-only files
-├── api/
-│   ├── __init__.py      # require_auth() — hmac.compare_digest, disabled when creds empty
-│   ├── auth.py          # GET /api/auth — returns {auth_required: bool}, no credentials needed
-│   ├── servers.py       # 7 routes + config sub-resource
-│   ├── missions.py      # 6 routes (upload max 64, download, workshop)
-│   ├── mods.py          # GET /
-│   ├── logs.py          # list, delete, view/download
-│   ├── settings.py      # GET /
-│   ├── steamcmd.py      # install, update, branch, version
-│   ├── presets.py       # 16 preset pipeline endpoints
-│   └── ws.py            # /ws WebSocket: initial snapshot + EventBus streaming
-└── main.py              # create_app(): lifespan, routers, static mount + no-store index.html
-```
-
-### Key invariants (do not break)
-
-- **`servers.json` field names**: `ServerSchema` preserves mixed camelCase/snake_case (`forcedDifficulty`, `additionalConfigurationOptions`, `battle_eye`, etc.) — changing any breaks existing installs.
-- **Mock target for `servers.json` in tests**: `app.domain.manager.SERVERS_JSON` (not `app.core.paths`).
-- **Windows junctions**: `mod_linker._is_junction()` uses `path.lstat()` — `path.stat()` follows junctions and returns wrong attributes.
-- **Junction removal**: always `os.rmdir()` — never `shutil.rmtree()` (deletes actual mod files on Windows).
-- **`structlog.stdlib.add_logger_name`** crashes with `PrintLoggerFactory` — not in processor chain.
-- **`httpx.AsyncClient`** is used everywhere — `requests` is not a dependency.
-- **WebSocket keepalive**: catch `(TimeoutError, asyncio.TimeoutError)` — they are different classes in Python 3.9.
-- **All API list routes need trailing slash**: FastAPI prefix routes live at `/api/X/`. Calls to `/api/X` get a 307 that drops `Authorization`.
-- **`index.html` must not be cached**: `spa_fallback` sends `Cache-Control: no-store` — do not remove this header.
-
-### Tests
-
-```
-tests/
-├── conftest.py                          # app fixture (TestClient + tmp config)
-├── backend/
-│   ├── unit/
-│   │   ├── test_manager_persistence.py  # servers.json round-trip
-│   │   ├── test_schemas.py              # schema validation + field names
-│   │   ├── test_schemas_extra.py        # BasicConfigSchema, GameType, WsEnvelope, etc.
-│   │   ├── test_preset_parser.py        # HTML preset parsing
-│   │   ├── test_preset_compare.py       # compare_presets() logic
-│   │   ├── test_mod_linker.py           # junction/symlink create/remove/detect
-│   │   ├── test_mod_migrator.py         # move mod folders between groups
-│   │   ├── test_mod_fetcher.py          # Caddy HTTP downloads (respx mocks)
-│   │   ├── test_mod_cleaner.py          # orphan folder detection + deletion
-│   │   ├── test_mod_reporter.py         # missing mod report generation
-│   │   ├── test_mod_updater.py          # stale file re-download
-│   │   ├── test_config_writer.py        # server.cfg golden output
-│   │   ├── test_config_writers.py       # basic.cfg + .Arma3Profile writers
-│   │   ├── test_domain_logs.py          # list/get/delete/cleanup log files
-│   │   ├── test_domain_mods.py          # list_mods() filesystem scan
-│   │   ├── test_a2s.py                  # A2S query wrapper (AsyncMock)
-│   │   ├── test_pubsub.py               # EventBus publish/subscribe/drop
-│   │   ├── test_steamcmd.py             # SteamCMD subprocess (MagicMock)
-│   │   ├── test_workshop.py             # Workshop HTTP calls (respx mocks)
-│   │   └── test_auth.py                 # HTTP Basic Auth + IP lockout
-│   └── integration/
-│       ├── test_api_servers.py          # CRUD + start/stop endpoints
-│       ├── test_api_servers_extra.py    # update, config, start/stop, create validation
-│       ├── test_api_missions.py         # upload, download, delete, workshop
-│       ├── test_api_logs.py             # list, view, download, delete
-│       ├── test_api_mods_settings.py    # GET /api/mods/ + GET /api/settings/
-│       ├── test_api_steamcmd.py         # install, update, branch, version
-│       ├── test_api_presets.py          # 16 preset endpoints (module state reset fixture)
-│       └── test_api_ws.py              # WebSocket smoke test
-```
-
-**288 passing, 3 skipped** (Linux-only symlink tests on Windows). Coverage: **80.03%**.
-
-#### Test writing tips
-
-- **Mock `SERVERS_JSON`**: patch `app.domain.manager.SERVERS_JSON`, not `app.core.paths.SERVERS_JSON`.
-- **Preset module state**: `_presets`, `_comparison`, `_missing_report` in `app/api/presets.py` are module-level globals. Reset them in `autouse` fixtures or tests will bleed state.
-- **httpx mocks**: use `respx.mock` context manager. Do not use `unittest.mock.patch` on httpx internals.
-- **Async subprocess (steamcmd)**: mock with `unittest.mock.MagicMock()`, set `stdout.readline = AsyncMock(side_effect=[b"line\n", b""])`.
-- **Auth lockout**: import `app.api` and clear `_fail_counts` / `_fail_times` dicts between tests.
-
----
-
-## Frontend (Phase 2 — complete)
-
-### Frontend commands
-
-```bash
+# Frontend
 cd frontend
-
-npm run dev          # Vite dev server on :9510 (proxies /api + /ws to :9500)
-npm run build        # Production build → frontend/dist/
-npm run typecheck    # tsc --noEmit
-npm run lint         # eslint
-npm run test         # Vitest (447 tests)
-npm run test:watch   # Vitest watch mode
-npm run test:coverage # Vitest with v8 coverage report
-npm run gen:types    # openapi-typescript → src/types/api.ts (backend must be running)
+npm ci
+npm run dev                               # :9510, proxies /api and /ws to :9500
+npm run typecheck && npm run lint
+npx vitest run                            # all unit tests
+npx vitest run src/hooks/useServers.test.tsx       # one file
+npx vitest run -t "<test name>"                    # by test name
+npm run test:coverage
+npm run test:e2e                          # Playwright; starts `npm run dev` itself, API is mocked via page.route
+npm run build                             # tsc -b && vite build → frontend/dist/ (gitignored)
+npm run gen:types                         # openapi-typescript — note: script points at /openapi.json but the app serves /api/openapi.json
 ```
 
-### Architecture
+`frontend/dist/` is not committed: after every `git pull` on a deployed server run `cd frontend && npm run build`, then restart the Python process.
 
-```
-frontend/src/
-├── main.tsx                   # Entry point, imports globals.css
-├── App.tsx                    # QueryClientProvider + TooltipProvider + Toaster + RouterProvider
-├── router.tsx                 # All routes with real screens
-├── styles/
-│   ├── tokens.css             # CSS custom properties — dark is :root default, .light overrides
-│   └── globals.css            # Tailwind v4 + shadcn theme mapping + status-breath animation
-├── lib/
-│   ├── api.ts                 # Typed fetch wrapper (GET/POST/PUT/DELETE + auth + ApiError)
-│   ├── query-client.ts        # TanStack Query v5 (staleTime 30s, no mutation retry)
-│   ├── ws.ts                  # WebSocket client with exponential backoff reconnect
-│   ├── theme.ts               # dark = no class, light = .light on <html>; localStorage persist
-│   └── utils.ts               # cn() from shadcn (clsx + tailwind-merge)
-├── hooks/
-│   ├── useTheme.ts            # React hook wrapping theme.ts
-│   ├── useServers.ts          # TanStack Query CRUD + start/stop + toast notifications
-│   ├── useMissions.ts         # Mission list, delete, refresh, workshop, upload + toast
-│   ├── useMods.ts             # Mod list hook
-│   ├── usePresets.ts          # Preset list, upload, delete + toast
-│   └── useServerStatus.ts     # WS → TanStack Query cache patching for live updates
-├── types/
-│   └── api.ts                 # Hand-maintained types matching backend schemas
-├── components/
-│   ├── ui/                    # shadcn/ui copies (16 components including sonner toast)
-│   ├── servers/
-│   │   ├── ServerCard.tsx     # Card with status indicator + player count
-│   │   └── StatusDot.tsx      # Animated status dot (2s breath, prefers-reduced-motion)
-│   └── layout/
-│       ├── AppShell.tsx       # Sidebar + Topbar + content area + mobile sidebar state
-│       ├── Sidebar.tsx        # Glass sidebar with Iris active indicator + framer-motion hover
-│       ├── MobileSidebar.tsx  # Animated off-canvas sidebar with spring slide
-│       ├── Topbar.tsx         # Glass topbar with hamburger (mobile) + breadcrumb
-│       ├── AnimatedOutlet.tsx # framer-motion page transitions (opacity + y)
-│       ├── Breadcrumb.tsx     # Path-based breadcrumb
-│       └── ThemeToggle.tsx    # Dark/light toggle button
-└── test/
-    └── setup.ts               # Vitest + @testing-library/jest-dom + matchMedia mock
-```
+CI (`.github/workflows/ci.yml`): backend = ruff → mypy (non-blocking) → pytest with `--cov-fail-under=80`; frontend = eslint → tsc → vitest → build → bundle-size gate (main JS ≤ 300 KB gzip). E2E is **not** run in CI. All of these gates pass on Linux; keep it that way (ruff clean, ESLint with 0 errors). CI runs on Ubuntu while day-to-day development happens on Windows, so run the suites with Linux semantics before assuming green. Path handling is the usual trap: a `\` separator only works on Windows.
 
-### Key decisions
+## Workflow expectations
 
-- **Tailwind v4** — config is in CSS, not `tailwind.config.ts`. No `postcss.config.js`.
-- **shadcn base-nova style** — v4 default. `@layer base` maps shadcn vars to our tokens.
-- **Dark-first theme**: dark mode is the CSS `:root` default. Light requires `.light` class on `<html>`. No `prefers-color-scheme` used — this is an admin tool.
-- **`html` element gets an animated gradient background** (4-color indigo/violet drift, 18s cycle) so there is zero white flash even before CSS parses.
-- **All frontend API list calls use trailing slash** (`/servers/`, `/mods/`, etc.) to avoid FastAPI's 307 redirect that drops the `Authorization` header.
-- **Frontend API types are hand-maintained** in `src/types/api.ts`. Run `npm run gen:types` against a live backend to regenerate. Key fields: `Mission.name/missionName/worldName`, `LogEntry.name/modified`, `Mod.formattedSize`.
-- **WebSocket client** (`ws.ts`) — single shared instance, auto-connects on first subscriber, auto-disconnects on last unsubscribe.
-- **useServerStatus** — patches TanStack Query cache in-place on WS events; invalidates mod/mission/log/settings queries on change events.
+- **Bug fix**: read the relevant files first. Run `python -m pytest tests/ -q` before and after, and keep coverage ≥ 80%.
+- **New feature**: follow the decisions in `PLAN.md`. Write tests first (TDD), then update this file and `PLAN.md`.
+- **New API route**: add it under `app/api/`, add an integration test in `tests/backend/integration/`, and re-check coverage.
+- **Frontend change**: run `npm run typecheck && npm run lint && npx vitest run`. For UI changes, also check the result in a browser with the dev server running.
+- **Fixing an item from `docs/PROJECT_HEALTH.md`**: add a test that hits the *real* contract (not a mocked hook or route), then strike or remove the item.
 
-### Design system
+## Architecture
 
-Iris glassmorphism theme with animated gradient background. Key tokens (oklch, hue 275 = indigo/violet):
-- Page background: animated gradient (`#1e1b4b → #3b0764 → #0f172a → #1e1b4b`)
-- Surface (glass): `rgb(255 255 255 / 0.05)` + `backdrop-blur(24px)` + `border-white/10`
-- Surface raised (hover): `hover:bg-white/10`
-- Accent (indigo CTA): `oklch(63% 0.22 270)`
-- Danger (red buttons): `oklch(57% 0.24 25)`
-- Headings: `gradient-heading` (indigo-400 → violet-400 gradient text)
-- Section labels: `section-label` (uppercase, tracking-widest, indigo-400/80)
-- Primary buttons: `btn-primary` (indigo-600 with glow shadow)
-- Glass cards: `glass-card` (translucent + backdrop-blur + rounded-2xl)
-- Form inputs: `glass-input` (translucent + backdrop-blur-sm)
-- Sidebar: glass with Iris active indicator (left bar + indigo glow + ring)
-- Page transitions: framer-motion AnimatePresence (opacity + y, 0.2s)
-- Mobile: hamburger menu opens animated MobileSidebar (spring slide from left)
-- Light mode: `.light` class on `<html>` overrides glass to `bg-white/60 border-white/80`
+### Backend request/data flow
+
+- `app/main.py` builds the app via `create_app()` **at import time** (module-level `app = create_app()` loads `config.json` immediately). The lifespan creates one `EventBus` and one `Manager`, stores them plus `settings` on `app.state`, loads `servers.json`, and auto-starts flagged servers; on shutdown it stops running servers. On Windows it switches to `WindowsProactorEventLoopPolicy` (needed for `asyncio.create_subprocess_exec`).
+- Config: `app/core/config.py` — pydantic-settings `Settings` from `config.json` + `ARMA_*` env vars (nested with `__`, e.g. `ARMA_AUTH__PASSWORD`); a few camelCase keys from the old `config.js` are remapped in `_KEY_MAP`. There are two access paths: routes use `request.app.state.settings`, while `require_auth`/WS auth/`/api/auth` use the module-global `get_settings()`. `load_settings()` updates both.
+- Layers: `app/api/` (routers, thin) → `app/domain/` (Manager, Server, config writers, filesystem listings) → `app/services/` (A2S, SteamCMD, Workshop, preset/mod pipeline, pub/sub). `app/schemas/` holds pydantic models.
+- **Server identity**: `Server.id = slugify(title)`. Renaming a server changes its id and its `<id>.cfg` filename; `Manager.add` does not check for collisions.
+- **Server lifecycle** (`app/domain/server.py`): `start()` writes configs into the game dir (`<path>/<id>.cfg`, shared `<path>/basic.cfg`, and `<id>.Arma3Profile` when `forcedDifficulty == "Custom"`), spawns the binary from `_BINARIES[type][game]` (prefixed with `wine` for `type: wine`), then runs two tasks: `_monitor()` (awaits exit, clears runtime state) and `_poll_status()` (A2S query every 5 s on `127.0.0.1:<port>`; launches headless clients once the server answers). The process's stdout is piped but not consumed yet (PROJECT_HEALTH P5). Runtime fields `pid`/`state` are never persisted.
+- **Persistence**: only `servers.json` (array of `ServerSchema` dumps, rewritten in full on every change). Preset pipeline state (`_presets`, `_comparison`, `_missing_report` in `app/api/presets.py`) is in-memory module globals and is lost on restart.
+- **Auth**: `require_auth` (`app/api/__init__.py`) is attached per-router via `dependencies=[Depends(require_auth)]`. HTTP Basic, `hmac.compare_digest`, in-memory per-IP lockout (5 failures → 60 s 429). Disabled entirely when username and password are both empty. `/api/auth` is intentionally unauthenticated (login probe). The WS route does its own check (`_check_ws_auth`) accepting either an `Authorization` header or `?token=<base64 user:pass>`.
+- **Live updates**: `app/services/pubsub.py` `EventBus` gives each WS connection a bounded `asyncio.Queue` (64, drop-oldest). `/ws` (`app/api/ws.py`) sends an initial snapshot (`servers`, `mods`, `missions`, `settings`), then forwards bus messages, sending `{"type":"ping"}` after 30 s idle. Envelope: `{"type", "serverId", "payload"}`. Most publishers send `payload: None` as a "something changed" signal (see `docs/PROJECT_HEALTH.md` — the frontend currently treats `servers` payloads as full data).
+- **Preset/mod pipeline** (`app/api/presets.py` + `app/services/mod_*`, `preset_*`): ported from the external `arma-modlist-tools` project. Parses Arma Launcher `.html` presets, compares them (steam_id first, normalized name fallback), downloads mod files from a Caddy file server (`config.caddy`), and links mod folders into the game dir with NTFS junctions (Windows) or symlinks (Linux). Long operations stream progress over the bus.
+
+### Frontend
+
+- `src/App.tsx`: `QueryClientProvider` → `AuthProvider` → `AuthGate` (shows `LoginScreen` when `/api/auth` says auth is required) → `AuthenticatedApp`, which mounts `useServerStatus()` once (single shared WS) and the router.
+- `src/lib/api.ts`: fetch wrapper; prefixes paths with `/api`, holds the Basic auth header in a module variable (`_getAuthHeader()` is also used by `ws.ts` to build `?token=`). Credentials are persisted in `sessionStorage` by `AuthProvider`.
+- `src/lib/ws.ts`: singleton WebSocket, connects on first subscriber, disconnects on last, exponential backoff (1 s → 30 s cap) with jitter, drops `ping`.
+- `src/hooks/` (plus a few inline queries in feature screens, e.g. logs, settings, steamcmd): TanStack Query v5. Query keys: `["servers"]`, `["servers", id]`, `["mods"]`, `["missions"]`, `["logs"]`, `["settings"]`, presets. `useServerStatus` patches/invalidates these from WS events (its `server` / `server_state` cases are never emitted by the backend). Server online/offline and the Start/Stop button are derived from `state.online` (A2S), not from `pid`.
+- `src/router.tsx`: `/servers/:id/{general,missions,mods,difficulty,network,security,advanced}` are nested tab routes under `ServerDetailScreen`; each tab independently loads `useServer(id)`, keeps local form state, and saves with `useUpdateServer` (`PUT /api/servers/{id}`). `/presets/:id` and the 404 route are placeholders.
+- `src/types/api.ts` is **hand-maintained**; keep it in sync with `app/schemas/*` by hand.
+- `src/components/ui/` are shadcn copies built on **Base UI**, not Radix.
+
+## Invariants — do not break
+
+- **`servers.json` field names** are a mix of camelCase and snake_case (`forcedDifficulty`, `additionalConfigurationOptions`, `battle_eye`, `auto_start`, …) for compatibility with existing installs of the Node app. `ServerSchema` uses `extra="allow"` so unknown keys round-trip. Never rename fields. That's why `pyproject.toml` ignores ruff `N815` for `app/schemas/**`; don't "fix" those names.
+- **Windows junctions**: detect with `path.lstat()` (never `stat()`, it follows the junction); remove with `os.rmdir()` — **never `shutil.rmtree()`**, which deletes the real mod files. Remove a junction *before* moving its target folder (`mod_migrator`).
+- **Trailing slashes must match the route exactly**: collection routes are `@router.get("/")` under a prefix, so they live at `/api/X/`; item/action routes have none (`/api/servers/{id}/start`, `/api/missions/workshop`). A mismatch fails differently per environment — in dev (no `dist/`) FastAPI 307-redirects to the backend origin and the `Authorization` header is lost; in prod the SPA catch-all answers slashless GETs with `index.html` (200, not JSON) and POSTs with 405.
+- **Route order**: in `app/api/presets.py`, `GET /{name}` must stay the **last** GET route or it swallows literal routes like `/comparison`.
+- **Python 3.9 compatibility**: `asyncio.TimeoutError` is not the builtin `TimeoutError` before 3.11 — catch `(TimeoutError, asyncio.TimeoutError)` (`Server.stop()` still gets this wrong; PROJECT_HEALTH P6). `X | None` in pydantic models works on 3.9 only thanks to `from __future__ import annotations` + `eval-type-backport`; keep both.
+- **Mod scan glob**: `Path.glob()` has no `{a,b}` brace expansion — `app/domain/mods.py` uses several explicit patterns with a `seen` set. (`MOD_SCAN_GLOB` in `paths.py` is documentation only.)
+- **HTTP client**: `httpx.AsyncClient` everywhere; do not add `requests`.
+- **Logging**: structlog with `PrintLoggerFactory`; do not add `structlog.stdlib.add_logger_name` (crashes without the stdlib factory).
+- **SPA fallback** sends `index.html` with `Cache-Control: no-store` so browsers pick up new asset hashes after a rebuild.
+
+### Frontend gotchas
+
+- **Theme**: dark is the `:root` default in `src/styles/tokens.css`; light mode only when `.light` is on `<html>`. Tailwind `dark:` variants do **not** work (no `.dark` class ever exists) — style for dark by default and override with `.light`.
+- **Base UI composition**: use the `render` prop (`<DialogTrigger render={<Button />}>`), not Radix's `asChild`.
+- **Fast refresh / ESLint**: a `.tsx` file that exports a component must export only components (`react-refresh/only-export-components` is an error). That's why auth is split into `features/auth/AuthProvider.tsx` (component), `useAuth.ts` (hook) and `auth-context.ts` (context + `AuthState`). In tests, don't assign to outer variables during render (`react-hooks/globals`); use `renderHook` instead.
+- **Tailwind v4**: config lives in CSS (`src/styles/globals.css`), there is no `tailwind.config.*`.
+- Entries in `server.missions` come in three shapes: plain strings, `{template, difficulty, params}` (current), and `{name, difficulty}` (written by the old Node app). `MissionsTab.parseMissions()` and `write_server_cfg` must accept all of them — today neither handles `{name}` (see `docs/PROJECT_HEALTH.md`). `template` is `missionName.worldName` **without** `.pbo`.
+- `ServerCard` is a `<div>` with only the title as a `<Link>`, so action buttons don't trigger navigation.
+- UI design tokens/utilities (Iris glassmorphism): `glass-card`, `glass-input`, `btn-primary`, `gradient-heading`, `section-label` in `globals.css`; accent hue 275 (indigo/violet). Animated page transitions via framer-motion in `AnimatedOutlet`.
+
+## Testing notes
+
+- `tests/conftest.py` provides `app` (config in `tmp_path`, auth disabled) and `client` (`TestClient`). Integration tests go in `tests/backend/integration/`, unit tests in `tests/backend/unit/`.
+- Patch **`app.domain.manager.SERVERS_JSON`** (not `app.core.paths.SERVERS_JSON`) to isolate `servers.json`; otherwise tests read/write the real file in the CWD.
+- Module-level state that leaks between tests: `app.api._fail_counts` / `_fail_times` (auth lockout) and `_presets` / `_comparison` / `_missing_report` in `app/api/presets.py` — reset them in fixtures.
+- Mock httpx with `respx.mock`; mock async subprocesses with `MagicMock()` whose `stdout.readline = AsyncMock(side_effect=[b"line\n", b""])`.
+- Three `test_mod_linker.py` tests are Windows-only and skip on Linux.
+- Frontend tests: Vitest + Testing Library + jsdom (`src/test/setup.ts` mocks `matchMedia`). Playwright E2E specs mock every `/api/**` call (`e2e/helpers/api-mocks.ts`), so they cannot catch frontend↔backend contract bugs; the visual snapshots under `e2e/screenshots.spec.ts-snapshots/` are Windows-rendered (`*-win32.png`).
+
+## Historical bugs (fixed — don't re-introduce)
+
+| Bug | Where | Fix |
+|-----|-------|-----|
+| Auth probe hit a protected endpoint; non-401 errors bypassed login | `features/auth/AuthProvider.tsx` | Probe `GET /api/auth` (unauthenticated, returns `{auth_required}`) |
+| White flash / stuck light theme | `styles/` | Dark is the CSS default; no JS needed |
+| Switch thumb invisible | `components/ui/switch.tsx` | No `dark:` variants; `data-checked:`/`data-unchecked:` classes directly |
+| WS keepalive never fired on 3.9 | `app/api/ws.py` | Catch `(TimeoutError, asyncio.TimeoutError)` |
+| 307/405 and dropped auth on collection routes | `src/hooks/*` | Trailing slash on every collection call |
+| Browser kept stale `index.html` | `app/main.py` | `Cache-Control: no-store` |
+| `NotImplementedError` from `create_subprocess_exec` on Windows | `app/main.py` | Proactor event loop policy |
+| `availableMods` always empty | `tabs/ModsTab.tsx` | Derive from `useMods()` minus the active set |
+| Active mods missing on disk shown silently | `tabs/ModsTab.tsx` | Cross-reference with scan; "Missing" badge |
+| Per-mission params not written | `config_writer/server_config.py`, `MissionsTab.tsx` | Params emitted inside `Mission_N` blocks. They still need a `class Params {}` wrapper (PROJECT_HEALTH P10). |
+| Frontend types drifted from schemas | `src/types/api.ts` | `Mission.name/missionName/worldName`, `LogEntry.name/modified`, `Mod.formattedSize` |
+| Test helper `_preset()` incomplete | backend tests | Must pass `source_file` and `mod_count`; there is no `groups` field |
+| `list_mod_updates` treated `subdir\file` as a literal filename on Linux (CI red) | `app/services/mod_fetcher.py` | Normalise `\` → `/` before joining, as `download_mod_folder` does |
