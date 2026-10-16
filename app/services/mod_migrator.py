@@ -7,6 +7,7 @@ from typing import Any
 
 import structlog
 
+from app.core.paths import safe_join
 from app.schemas.preset import Comparison
 from app.services.mod_linker import _is_junction, _remove_junction
 
@@ -89,6 +90,9 @@ async def migrate_mod_groups(
     """
     index = _build_local_index(downloads)
     targets = _build_target_list(comparison)
+    # Group names are preset names from uploaded files: validate them all before
+    # moving anything (raises UnsafePathError).
+    group_dirs = {group: safe_join(downloads, group) for group, _, _ in targets}
 
     moved = 0
     junction_removed = 0
@@ -116,7 +120,7 @@ async def migrate_mod_groups(
             skipped_correct += 1
             continue
 
-        dest_group_dir = downloads / new_group
+        dest_group_dir = group_dirs[new_group]
         dest_group_dir.mkdir(parents=True, exist_ok=True)
         dest_path = dest_group_dir / current_path.name
 

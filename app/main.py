@@ -13,12 +13,13 @@ import structlog
 # ProactorEventLoop is required for asyncio.create_subprocess_exec().
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import load_settings
 from app.core.logging import AccessLogMiddleware, configure_logging
+from app.core.paths import UnsafePathError
 
 log = structlog.get_logger()
 
@@ -65,6 +66,11 @@ def create_app(config_path: Path | None = None) -> FastAPI:
     )
 
     app.add_middleware(AccessLogMiddleware)
+
+    # Path-traversal attempts from any route (or the services it calls) become 400s.
+    @app.exception_handler(UnsafePathError)
+    async def unsafe_path_handler(request: Request, exc: UnsafePathError) -> JSONResponse:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
 
     _register_routes(app)
     _mount_frontend(app)
