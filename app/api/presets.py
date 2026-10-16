@@ -8,7 +8,8 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 
 from app.api import require_auth
 from app.core.config import Settings
-from app.schemas.preset import Comparison, MissingReport
+from app.core.paths import safe_join
+from app.schemas.preset import Comparison, MissingReport, ModEntry
 from app.services import (
     mod_cleaner,
     mod_fetcher,
@@ -116,6 +117,16 @@ async def fetch_mods(
     bus = request.app.state.bus
     downloads = _downloads_dir(settings)
 
+    # Preset and mod names come from uploaded files and become folder names, so
+    # resolve every destination before touching Caddy or the disk.
+    all_mods = list(_comparison.shared.mods)
+    for group in _comparison.unique.values():
+        all_mods.extend(group.mods)
+    targets: list[tuple[ModEntry, str, Path]] = []
+    for mod in all_mods:
+        group_name = "shared" if mod in _comparison.shared.mods else _find_group(mod)
+        targets.append((mod, group_name, safe_join(downloads, group_name, mod.name)))
+
     async def progress(current: int, total: int, name: str) -> None:
         await bus.publish("presets", {"op": "fetch_index", "current": current, "total": total, "name": name})
 
@@ -125,17 +136,11 @@ async def fetch_mods(
     )
 
     results: list[dict[str, Any]] = []
-    all_mods = list(_comparison.shared.mods)
-    for group in _comparison.unique.values():
-        all_mods.extend(group.mods)
-
-    for mod in all_mods:
-        group_name = "shared" if mod in _comparison.shared.mods else _find_group(mod)
+    for mod, group_name, dest in targets:
         folder_url = mod_fetcher.find_mod_folder(mod.name, mod.steam_id, index)
         if folder_url is None:
             results.append({"mod": mod.name, "status": "not_on_server"})
             continue
-        dest = downloads / group_name / mod.name
         stats = await mod_fetcher.download_mod_folder(
             folder_url, dest, auth,
             on_file=lambda r, n, dl: None,
@@ -175,8 +180,7 @@ def link(
     body: dict[str, str],
     settings: Annotated[Settings, Depends(_get_settings)],
 ) -> dict[str, Any]:
-    group = body.get("group", "shared")
-    group_dir = _downloads_dir(settings) / group
+    group_dir = safe_join(_downloads_dir(settings), body.get("group", "shared"))
     return mod_linker.link_group(group_dir, _arma_dir(settings))
 
 
@@ -185,8 +189,7 @@ def unlink(
     body: dict[str, str],
     settings: Annotated[Settings, Depends(_get_settings)],
 ) -> dict[str, Any]:
-    group = body.get("group", "shared")
-    group_dir = _downloads_dir(settings) / group
+    group_dir = safe_join(_downloads_dir(settings), body.get("group", "shared"))
     return mod_linker.unlink_group(group_dir, _arma_dir(settings))
 
 
@@ -246,17 +249,19 @@ async def sync_missing(
     if not settings.caddy.base_url:
         raise HTTPException(status_code=400, detail="caddy.base_url not configured")
 
+    # Group and mod names come from uploaded presets: resolve them all before downloading.
+    downloads = _downloads_dir(settings)
+    targets = [(m, safe_join(downloads, m.group, m.name)) for m in _missing_report.missing_mods]
+
     auth = (settings.caddy.username, settings.caddy.password)
     index = await mod_fetcher.build_server_index(settings.caddy.base_url, auth)
-    downloads = _downloads_dir(settings)
     results = []
 
-    for missing in _missing_report.missing_mods:
+    for missing, dest in targets:
         folder_url = mod_fetcher.find_mod_folder(missing.name, missing.steam_id, index)
         if folder_url is None:
             results.append({"mod": missing.name, "status": "still_missing"})
             continue
-        dest = downloads / missing.group / missing.name
         stats = await mod_fetcher.download_mod_folder(folder_url, dest, auth)
         results.append({"mod": missing.name, "group": missing.group, **stats})
 
@@ -274,10 +279,12 @@ async def update_mods(
 
     group = body.get("group", "shared")
     mod_name = body.get("mod", "")
+    # update_mod_folder deletes local files missing from the listing, so dest must
+    # be a mod folder inside downloads/, never the game dir (S0).
+    dest = safe_join(_downloads_dir(settings), group, mod_name)
+
     auth = (settings.caddy.username, settings.caddy.password)
     index = await mod_fetcher.build_server_index(settings.caddy.base_url, auth)
-
-    dest = _downloads_dir(settings) / group / mod_name
     folder_url = mod_fetcher.find_mod_folder(mod_name, None, index)
     if folder_url is None:
         raise HTTPException(status_code=404, detail="Mod not found on server")

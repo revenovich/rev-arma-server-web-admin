@@ -1,8 +1,10 @@
 """Integration tests for /api/missions."""
 from __future__ import annotations
 
+import errno
 import io
 import json
+import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -181,3 +183,100 @@ def test_workshop_download_failure_returns_502(client: TestClient) -> None:
     ):
         resp = client.post("/api/missions/workshop", json={"id": "450814997"})
     assert resp.status_code == 502
+
+
+# ---------------------------------------------------------------------------
+# Path traversal (S1): only the last component of the upload filename is used
+# ---------------------------------------------------------------------------
+
+def _upload(client: TestClient, filename: str, content: bytes = b"pbo") -> object:
+    return client.post(
+        "/api/missions/",
+        files=[("files", (filename, io.BytesIO(content), "application/octet-stream"))],
+    )
+
+
+@pytest.mark.parametrize(
+    ("filename", "stored"),
+    [
+        ("../escaped.pbo", "escaped.pbo"),
+        ("mpmissions/../../Escaped.Altis.pbo", "escaped.altis.pbo"),
+        ("..\\..\\win_escaped.pbo", "win_escaped.pbo"),
+        ("C:\\Users\\me\\Desktop\\desk.pbo", "desk.pbo"),
+    ],
+)
+def test_upload_mission_traversal_lands_in_mpmissions(
+    client: TestClient, tmp_path: Path, filename: str, stored: str
+) -> None:
+    resp = _upload(client, filename)
+    assert resp.status_code == 201
+    assert resp.json()["uploaded"] == [stored]
+    assert (tmp_path / "mpmissions" / stored).read_bytes() == b"pbo"
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["config.json", "mpmissions"]
+
+
+def test_upload_mission_absolute_filename_lands_in_mpmissions(
+    client: TestClient, tmp_path: Path
+) -> None:
+    resp = _upload(client, str(tmp_path / "abs_escaped.pbo"))
+    assert resp.status_code == 201
+    assert resp.json()["uploaded"] == ["abs_escaped.pbo"]
+    assert (tmp_path / "mpmissions" / "abs_escaped.pbo").exists()
+    assert not (tmp_path / "abs_escaped.pbo").exists()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Creating symlinks needs privileges on Windows")
+def test_upload_mission_rejects_symlink_out_of_mpmissions(
+    client: TestClient, tmp_path: Path
+) -> None:
+    missions = tmp_path / "mpmissions"
+    missions.mkdir()
+    outside = tmp_path / "outside.pbo"
+    outside.write_bytes(b"original")
+    (missions / "evil.pbo").symlink_to(outside)
+    resp = _upload(client, "evil.pbo")
+    assert resp.status_code == 400
+    assert outside.read_bytes() == b"original"
+
+
+def test_upload_mission_survives_cross_device_move(client: TestClient, tmp_path: Path) -> None:
+    # The temp dir and the game dir on different filesystems/drives (EXDEV / WinError 17).
+    exdev = OSError(errno.EXDEV, "Invalid cross-device link")
+    with patch("os.rename", side_effect=exdev):
+        resp = _upload(client, "cross.pbo")
+    assert resp.status_code == 201
+    assert (tmp_path / "mpmissions" / "cross.pbo").read_bytes() == b"pbo"
+
+
+# ---------------------------------------------------------------------------
+# Path traversal (S6): download/delete must stay inside mpmissions, not just
+# share its prefix (mpmissions_old)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("method", ["get", "delete"])
+def test_mission_backslash_traversal_rejected(client_with_mission: tuple, method: str) -> None:
+    # On Windows a single URL segment can carry ..\mpmissions_old\secret.pbo.
+    c, tmp_path = client_with_mission
+    secret = tmp_path / "mpmissions_old" / "secret.pbo"
+    secret.parent.mkdir()
+    secret.write_bytes(b"secret")
+    resp = getattr(c, method)("/api/missions/..%5Cmpmissions_old%5Csecret.pbo")
+    assert resp.status_code == 400
+    assert secret.read_bytes() == b"secret"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Creating symlinks needs privileges on Windows")
+@pytest.mark.parametrize("method", ["get", "delete"])
+def test_mission_resolving_into_sibling_dir_rejected(
+    client_with_mission: tuple, method: str
+) -> None:
+    c, tmp_path = client_with_mission
+    secret = tmp_path / "mpmissions_old" / "secret.pbo"
+    secret.parent.mkdir()
+    secret.write_bytes(b"secret")
+    link = tmp_path / "mpmissions" / "link.pbo"
+    link.symlink_to(secret)
+    resp = getattr(c, method)("/api/missions/link.pbo")
+    assert resp.status_code == 400
+    assert secret.read_bytes() == b"secret"
+    assert link.is_symlink()

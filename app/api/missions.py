@@ -49,8 +49,10 @@ async def upload_missions(
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pbo") as tmp:
             tmp.write(content)
             tmp_path = Path(tmp.name)
-        await missions_domain.save_upload(tmp_path, filename, settings)
-        uploaded.append(filename.lower())
+        try:
+            uploaded.append(await missions_domain.save_upload(tmp_path, filename, settings))
+        finally:
+            tmp_path.unlink(missing_ok=True)  # no-op once moved; cleans up a refused save
 
     await request.app.state.bus.publish("missions", None)
     return {"uploaded": uploaded}
@@ -61,11 +63,7 @@ async def download_mission(
     filename: str,
     settings: Annotated[Settings, Depends(_get_settings)],
 ) -> FileResponse:
-    from app.core.paths import missions_dir
-    base = missions_dir(settings).resolve()
-    path = (base / filename).resolve()
-    if not str(path).startswith(str(base)):
-        raise HTTPException(status_code=400, detail="Invalid filename")
+    path = missions_domain.mission_path(filename, settings)
     if not path.exists():
         raise HTTPException(status_code=404, detail="Mission not found")
     return FileResponse(str(path), filename=filename)
@@ -77,11 +75,6 @@ async def delete_mission(
     request: Request,
     settings: Annotated[Settings, Depends(_get_settings)],
 ) -> dict[str, Any]:
-    from app.core.paths import missions_dir
-    base = missions_dir(settings).resolve()
-    path = (base / filename).resolve()
-    if not str(path).startswith(str(base)):
-        raise HTTPException(status_code=400, detail="Invalid filename")
     await missions_domain.delete_mission(filename, settings)
     await request.app.state.bus.publish("missions", None)
     return {"deleted": filename}

@@ -2,13 +2,13 @@
 
 Audit of `master` @ `6485de8` (2026-10-16). Every item below was traced in code; items marked **✔ reproduced** were also confirmed by running the code (TestClient probe, test suite, linters). Line numbers are as of that commit.
 
-_Update: the CI failures in §3 have since been fixed. CI's checks now pass on Linux. Everything else is as audited._
+_Update: the CI failures in §3 have since been fixed. CI's checks now pass on Linux. The path-traversal holes S0, S1 and S6 and the P12 rename failure are also fixed (marked **✅ Fixed** in place). Everything else is as audited._
 
 ## TL;DR
 
 The rewrite has a sound architecture and good unit-test coverage, but **several headline features don't work end-to-end**, and there are **path-traversal holes that let a request delete or write files outside their directories**:
 
-1. **Security:** `POST /api/presets/update-mods` can be steered into deleting files across the game install (S0), and mission upload writes outside `mpmissions` (S1). Auth is off by default and silently stays off when the app is started from another directory (S2).
+1. **Security:** ✅ *Fixed:* `POST /api/presets/update-mods` could be steered into deleting files across the game install (S0), and mission upload wrote outside `mpmissions` (S1). *Still open:* auth is off by default and silently stays off when the app is started from another directory (S2).
 2. **Servers can't be run reliably:**
    - stdout is piped but never read, so the server blocks once the pipe fills (P5).
    - The A2S status query targets the wrong port, so servers show offline, headless clients never start, and the UI never offers **Stop** (P4, P13).
@@ -73,8 +73,10 @@ Every backend publisher sends `{"type": "servers", "payload": null}` as a "chang
 ### P11 — `/api/auth` and `require_auth` disagree when only one credential is set
 `require_auth` is disabled only when **both** username and password are empty (`app/api/__init__.py:32`). `/api/auth` reports `auth_required` only when **both** are set (`app/api/auth.py:14`). With just one set, the UI skips the login screen and every call returns 401.
 
-### P12 — Mission upload fails across filesystems
-`upload_missions` writes to the system temp dir, then `Path.rename()`s into `mpmissions` (`app/domain/missions.py:57`). `rename` fails with `EXDEV` / `WinError 17` when temp and the game dir are on different filesystems or drives, which is the README's own Windows example (`D:\Arma3Server`). Use `shutil.move` or a temp file inside the destination dir. The whole upload is also read into memory (up to 512 MB × 64 files).
+### P12 — Mission upload fails across filesystems (✅ rename fixed)
+✅ **Fixed:** `save_upload` now uses `shutil.move`, which falls back to copy + delete across filesystems or drives. *Still open:* the whole upload is read into memory.
+
+Original finding: `upload_missions` writes to the system temp dir, then `Path.rename()`s into `mpmissions` (`app/domain/missions.py:57`). `rename` fails with `EXDEV` / `WinError 17` when temp and the game dir are on different filesystems or drives, which is the README's own Windows example (`D:\Arma3Server`). Use `shutil.move` or a temp file inside the destination dir. The whole upload is also read into memory (up to 512 MB × 64 files).
 
 ### P13 — No Stop button for a running server
 `ServerDetailScreen.tsx:55` and `ServerCard.tsx:15` decide online/offline, and Start vs Stop, from `state.online` (A2S) instead of `pid`. Combined with P3 and P4, a started server keeps showing **Start**. Pressing it again just returns `already_running`, so the UI has no way to stop the server. Base the button on `pid != null` and the status dot on `state`.
@@ -135,13 +137,13 @@ Every backend publisher sends `{"type": "servers", "payload": null}` as a "chang
 
 | # | Severity | Issue |
 |---|---|---|
-| S0 | **Critical** | **`POST /api/presets/update-mods` can delete files across the game install (✔ reproduced up to path resolution).** `mod` and `group` from the request body are joined into `downloads/<group>/<mod>` (`presets.py:276-289`). `_normalize_name("@ace/../../..")` is `ace`, so a real `@ace` folder on the Caddy server matches, and the destination resolves to the **game directory itself**. `mod_updater.update_mod_folder` then unlinks every local file not in that mod's listing (`mod_updater.py:63-74`). The same traversal applies to `group` and to preset/mod names in `/fetch`, `/link`, `/unlink`, `/migrate` (`presets.py:138,179,189,259`, `mod_migrator.py:119`). Fix: validate names against `^[@\w .-]+$`, resolve paths, and require `is_relative_to(downloads)`. |
-| S1 | High | **Path traversal on mission upload (✔ reproduced).** `save_upload` joins the client-supplied filename onto `mpmissions` without sanitising it (`app/domain/missions.py:55`). An upload named `../../escaped.pbo` is written two directories above `mpmissions`. The `.pbo` suffix is the only constraint. Fix: `Path(filename).name`, then verify `resolved.is_relative_to(base)`. |
+| S0 | **Critical** | **✅ Fixed.** Every preset path join now goes through `app.core.paths.safe_join`. It rejects `/`, `\`, `.`/`..`, NUL, empty names and drive/absolute prefixes, then requires the resolved path to be strictly inside `downloads/` (`is_relative_to`). This covers `/update-mods`, `/fetch`, `/sync-missing`, `/link`, `/unlink` and `mod_migrator`. Bad names return 400 before Caddy is contacted or anything on disk changes. Tests: `tests/backend/integration/test_api_presets.py`. *Original finding:* **`POST /api/presets/update-mods` can delete files across the game install (✔ reproduced up to path resolution).** `mod` and `group` from the request body are joined into `downloads/<group>/<mod>` (`presets.py:276-289`). `_normalize_name("@ace/../../..")` is `ace`, so a real `@ace` folder on the Caddy server matches, and the destination resolves to the **game directory itself**. `mod_updater.update_mod_folder` then unlinks every local file not in that mod's listing (`mod_updater.py:63-74`). The same traversal applies to `group` and to preset/mod names in `/fetch`, `/link`, `/unlink`, `/migrate` (`presets.py:138,179,189,259`, `mod_migrator.py:119`). Fix: validate names against `^[@\w .-]+$`, resolve paths, and require `is_relative_to(downloads)`. |
+| S1 | High | **✅ Fixed.** `save_upload` keeps only the last path component of the upload filename (either separator style), then joins it with `safe_join`. A resolved path outside `mpmissions` (e.g. through a symlink) returns 400. Tests: `tests/backend/integration/test_api_missions.py`. *Original finding:* **Path traversal on mission upload (✔ reproduced).** `save_upload` joins the client-supplied filename onto `mpmissions` without sanitising it (`app/domain/missions.py:55`). An upload named `../../escaped.pbo` is written two directories above `mpmissions`. The `.pbo` suffix is the only constraint. Fix: `Path(filename).name`, then verify `resolved.is_relative_to(base)`. |
 | S2 | High | **Auth fails open.** `config.json.example` ships with empty credentials and `host: 0.0.0.0`, so every route is open on the network: start/stop, SteamCMD, file writes, and the preset operations that delete folders. `config.json` is resolved relative to the **CWD** (`core/config.py:62`). A service started from another directory (systemd without `WorkingDirectory`, nssm without `AppDirectory`) silently finds no config and runs **with auth disabled**. Fix: resolve config relative to the project or an explicit `--config`, log a loud warning, and refuse a non-loopback `host` without credentials. |
 | S3 | Medium | **Credentials leak into logs and storage.** The browser sends `?token=base64(user:pass)` on the WS URL, and uvicorn's access log prints the full query string for every WS connect. The UI also keeps `{username, password}` as plaintext JSON in `sessionStorage` (`useAuth.tsx:79`). |
 | S4 | Medium | **`server.cfg` injection.** No escaping in `write_server_cfg` (P10), so anyone who can edit a server can inject arbitrary `server.cfg` directives through MOTD/hostname. Low risk if only admins have access, but it also breaks benign input containing `"`. |
 | S5 | Medium | **The brute-force lockout is weak.** It's per-IP and in-memory, and the counter dicts grow without bound (one entry per IP). Behind a reverse proxy every client shares one IP, so one attacker locks out everyone. The WS path increments the same counter on every reconnect (P17). |
-| S6 | Low | **Path-prefix check.** `download_mission`/`delete_mission` use `str(path).startswith(str(base))` (`app/api/missions.py:64,79`), which also accepts a sibling such as `mpmissions_old\`. On Windows a single URL path segment can carry `..\mpmissions_old\x.pbo`, so the sibling is reachable there. Use `Path.is_relative_to`. |
+| S6 | Low | **✅ Fixed.** Download and delete resolve the filename through `missions.mission_path` → `safe_join`. That rejects separators and `..` in the URL segment and uses `Path.is_relative_to` instead of a string prefix. Both return 400. *Original finding:* **Path-prefix check.** `download_mission`/`delete_mission` use `str(path).startswith(str(base))` (`app/api/missions.py:64,79`), which also accepts a sibling such as `mpmissions_old\`. On Windows a single URL path segment can carry `..\mpmissions_old\x.pbo`, so the sibling is reachable there. Use `Path.is_relative_to`. |
 
 Also on the security side:
 - **Request bodies are parsed before `require_auth` runs, with no size limits.** Unauthenticated clients can make the app buffer large JSON bodies or spool large multipart uploads to disk. Put a body-size limit in front (reverse proxy or middleware).
@@ -228,7 +230,7 @@ Other test-suite observations:
 
 ## 6. Suggested order of work
 
-1. **Close the destructive holes now**: S0 (`update-mods` and the other preset path joins), S1 (upload filename), S2 (fail-open auth / CWD-relative config). Until then, don't expose the panel beyond localhost or a VPN.
+1. **Close the destructive holes now**: ~~S0 (`update-mods` and the other preset path joins), S1 (upload filename)~~ ✅ fixed. S2 (fail-open auth / CWD-relative config) is still open. Until it's fixed, don't expose the panel beyond localhost or a VPN.
 2. ~~**Make CI green**: ruff `N815` ignore plus autofix, fix or delete `list_mod_updates`, and the two ESLint errors.~~ **Done** (§3); `list_mod_updates` was fixed, not deleted.
 3. **Make the core loop work**: P5 (drain stdout), P4 (query port), P13 (Stop button), P6 (TimeoutError), P1 (partial PUT), P3 (WS payload), P22 (no reload in prod). Add one integration test per fix that exercises the *real* contract.
 4. **Stop data loss and corruption**: P19 (`servers.json` load/save), P7 and P23 (id collisions and re-keying), P8 (stale form across servers, rename navigation), P9 (validation), P10 (cfg escaping), P14 (`template`).
