@@ -326,6 +326,36 @@ def test_update_mods_rejects_traversal(
     assert (tmp_path / "config.json").exists()
 
 
+def test_update_mods_rejects_unsafe_caddy_listing(
+    caddy_client: TestClient, tmp_path: Path
+) -> None:
+    """Names in Caddy's own listing are untrusted too: 502, nothing written or removed."""
+    mod_dir = tmp_path / "downloads" / "shared" / "@ace"
+    mod_dir.mkdir(parents=True)
+    (mod_dir / "old.pbo").write_bytes(b"old")  # absent from the listing: would be removed
+    with respx.mock(assert_all_called=False) as router:
+        router.get(CADDY).mock(
+            return_value=httpx.Response(200, json=[{"name": "@ace/", "is_dir": True}])
+        )
+        router.get(CADDY + "@ace/meta.cpp").mock(return_value=httpx.Response(404))
+        router.get(CADDY + "@ace/").mock(
+            return_value=httpx.Response(
+                200, json=[{"name": "../../../evil.txt", "is_dir": False, "size": 5}]
+            )
+        )
+        files = router.get(url__startswith="http://caddy.test/").mock(
+            return_value=httpx.Response(200, content=b"pwned")
+        )
+        resp = caddy_client.post(
+            "/api/presets/update-mods", json={"group": "shared", "mod": "@ace"}
+        )
+    assert resp.status_code == 502  # the file server's fault, not the request's
+    assert "evil.txt" in resp.json()["detail"]
+    assert not files.called
+    assert [p for p in (tmp_path / "downloads").rglob("*") if p.is_file()] == [mod_dir / "old.pbo"]
+    _assert_game_dir_untouched(tmp_path)
+
+
 @pytest.mark.parametrize("endpoint", ["link", "unlink"])
 @pytest.mark.parametrize("group", ["..", "../..", "shared/../..", "..\\..", "/etc", "C:\\Windows"])
 def test_link_unlink_reject_traversal(client: TestClient, endpoint: str, group: str) -> None:

@@ -1,5 +1,5 @@
 """Tests for mod_fetcher — covers Caddy JSON guard, file-size=0 behaviour,
-backslash normalisation, and steam-id-first mod matching.
+backslash normalisation, steam-id-first mod matching, and unsafe listing names.
 
 All HTTP calls are mocked — no real Caddy server needed.
 """
@@ -9,12 +9,17 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
+import respx
 
+from app.core.paths import UnsafeListingError, UnsafePathError
 from app.services.mod_fetcher import (
     _list_dir,
     _normalize_name,
+    download_mod_folder,
     find_mod_folder,
+    list_mod_files,
     list_mod_updates,
 )
 
@@ -219,3 +224,173 @@ async def test_list_mod_updates_backslash_path_normalised(tmp_path: Path) -> Non
 
     # After normalisation, subdir/file.bisign exists locally at 200 bytes → not stale
     assert stale == []
+
+
+# ---------------------------------------------------------------------------
+# Listing names are untrusted: they must never place a file outside dest_path.
+# Caddy is mocked at the HTTP level so _walk, list_mod_files and download_file
+# all run for real.
+# ---------------------------------------------------------------------------
+
+CADDY = "http://cdn.test/mods/"
+ACE = CADDY + "@ace/"
+AUTH = ("user", "pass")
+
+
+def _listing(router: respx.Router, url: str, items: list[dict[str, Any]]) -> None:
+    router.get(url).mock(return_value=httpx.Response(200, json=items))
+
+
+def _serve_any_file(router: respx.Router) -> respx.Route:
+    """Answer every other GET on the host with file bytes (registered last, so listings win)."""
+    return router.get(url__startswith="http://cdn.test/").mock(
+        return_value=httpx.Response(200, content=b"pwned")
+    )
+
+
+def _files_outside(root: Path, dest: Path) -> list[Path]:
+    return [p for p in root.rglob("*") if p.is_file() and dest not in p.parents]
+
+
+@pytest.mark.asyncio
+async def test_walk_strips_caddy_trailing_slash_on_dirs() -> None:
+    """Caddy lists directories as ``addons/``; that must not be rejected or doubled."""
+    with respx.mock() as router:
+        _listing(router, ACE, [
+            {"name": "addons/", "is_dir": True, "size": 4096},
+            {"name": "mod.cpp", "is_dir": False, "size": 4},
+        ])
+        _listing(router, ACE + "addons/", [{"name": "ace_main.pbo", "is_dir": False, "size": 3}])
+        files = await list_mod_files(ACE, AUTH)
+
+    assert files == [
+        ("addons/ace_main.pbo", ACE + "addons/ace_main.pbo", 3),
+        ("mod.cpp", ACE + "mod.cpp", 4),
+    ]
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        {"name": "../evil.txt", "is_dir": False},
+        {"name": "..\\evil.dll", "is_dir": False},
+        {"name": "addons/../../evil.dll", "is_dir": False},
+        {"name": "/etc/passwd", "is_dir": False},
+        {"name": "C:evil.dll", "is_dir": False},
+        {"name": "C:\\evil.dll", "is_dir": False},
+        {"name": "evil\0.dll", "is_dir": False},
+        {"name": "", "is_dir": False},
+        {"name": "..", "is_dir": True},
+        {"name": "../", "is_dir": True},
+        {"name": ".", "is_dir": True},
+        {"name": "addons//", "is_dir": True},
+        {"name": "addons/", "is_dir": False},  # only directories get the slash stripped
+    ],
+)
+@pytest.mark.asyncio
+async def test_walk_rejects_unsafe_listing_names(entry: dict[str, Any]) -> None:
+    with respx.mock(assert_all_called=False) as router:
+        _listing(router, ACE, [{"name": "mod.cpp", "is_dir": False, "size": 4}, entry])
+        with pytest.raises(UnsafeListingError):
+            await list_mod_files(ACE, AUTH)
+        # Rejected without following the entry anywhere.
+        assert [str(c.request.url) for c in router.calls] == [ACE]
+
+
+@pytest.mark.asyncio
+async def test_walk_rejects_unsafe_name_in_subfolder() -> None:
+    with respx.mock() as router:
+        _listing(router, ACE, [{"name": "addons/", "is_dir": True}])
+        _listing(router, ACE + "addons/", [{"name": "..\\..\\evil.dll", "is_dir": False}])
+        with pytest.raises(UnsafeListingError):
+            await list_mod_files(ACE, AUTH)
+
+
+@pytest.mark.asyncio
+async def test_download_mod_folder_writes_caddy_listing_into_dest(tmp_path: Path) -> None:
+    dest = tmp_path / "downloads" / "shared" / "@ace"
+    with respx.mock(assert_all_called=False) as router:
+        _listing(router, ACE, [
+            {"name": "addons/", "is_dir": True},
+            {"name": "mod.cpp", "is_dir": False, "size": 5},
+        ])
+        _listing(router, ACE + "addons/", [{"name": "ace_main.pbo", "is_dir": False, "size": 5}])
+        _serve_any_file(router)
+        stats = await download_mod_folder(ACE, dest, AUTH)
+
+    assert stats["files_downloaded"] == 2
+    assert (dest / "addons" / "ace_main.pbo").read_bytes() == b"pwned"
+    assert (dest / "mod.cpp").read_bytes() == b"pwned"
+    assert _files_outside(tmp_path, dest) == []
+
+
+@pytest.mark.asyncio
+async def test_download_mod_folder_rejects_dotdot_file(tmp_path: Path) -> None:
+    dest = tmp_path / "downloads" / "shared" / "@ace"
+    with respx.mock(assert_all_called=False) as router:
+        _listing(router, ACE, [
+            {"name": "mod.cpp", "is_dir": False, "size": 5},
+            {"name": "../evil.txt", "is_dir": False, "size": 5},
+        ])
+        files = _serve_any_file(router)
+        with pytest.raises(UnsafeListingError):
+            await download_mod_folder(ACE, dest, AUTH)
+
+    assert not files.called  # not even the valid mod.cpp: the listing as a whole is refused
+    assert not dest.exists()
+    assert _files_outside(tmp_path, dest) == []
+
+
+@pytest.mark.asyncio
+async def test_download_mod_folder_rejects_dotdot_dir(tmp_path: Path) -> None:
+    dest = tmp_path / "downloads" / "shared" / "@ace"
+    with respx.mock(assert_all_called=False) as router:
+        _listing(router, ACE, [{"name": "..", "is_dir": True}])
+        # Where the ".." folder's listing would be fetched from (httpx collapses @ace/../).
+        _listing(router, CADDY, [{"name": "evil.dll", "is_dir": False, "size": 5}])
+        files = _serve_any_file(router)
+        with pytest.raises(UnsafeListingError):
+            await download_mod_folder(ACE, dest, AUTH)
+
+    assert not files.called
+    assert _files_outside(tmp_path, dest) == []
+
+
+@pytest.mark.asyncio
+async def test_download_mod_folder_rejects_symlink_out_of_dest(tmp_path: Path) -> None:
+    """Valid names, but dest/addons links outside: ensure_within must refuse it."""
+    dest = tmp_path / "downloads" / "shared" / "@ace"
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    dest.mkdir(parents=True)
+    try:
+        (dest / "addons").symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("symlinks not permitted here")
+
+    with respx.mock(assert_all_called=False) as router:
+        _listing(router, ACE, [
+            {"name": "mod.cpp", "is_dir": False, "size": 5},
+            {"name": "addons/", "is_dir": True},
+        ])
+        _listing(router, ACE + "addons/", [{"name": "evil.dll", "is_dir": False, "size": 5}])
+        files = _serve_any_file(router)
+        with pytest.raises(UnsafePathError):
+            await download_mod_folder(ACE, dest, AUTH)
+
+    assert not files.called
+    assert list(outside.iterdir()) == []
+    assert not (dest / "mod.cpp").exists()
+
+
+@pytest.mark.asyncio
+async def test_download_mod_folder_rejects_backslash_traversal_from_listing(tmp_path: Path) -> None:
+    """Even if a listing source skips _walk, the \\ → / normalisation can't escape dest."""
+    dest = tmp_path / "downloads" / "shared" / "@ace"
+    server_files = [("..\\evil.txt", "http://cdn.test/evil.txt", 5)]
+    with patch("app.services.mod_fetcher.list_mod_files", AsyncMock(return_value=server_files)), \
+         patch("app.services.mod_fetcher.download_file", AsyncMock()) as dl:
+        with pytest.raises(UnsafePathError):
+            await download_mod_folder(ACE, dest, AUTH)
+
+    dl.assert_not_called()

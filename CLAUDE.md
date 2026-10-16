@@ -122,3 +122,4 @@ CI (`.github/workflows/ci.yml`): backend = ruff → mypy (non-blocking) → pyte
 | Frontend types drifted from schemas | `src/types/api.ts` | `Mission.name/missionName/worldName`, `LogEntry.name/modified`, `Mod.formattedSize` |
 | Test helper `_preset()` incomplete | backend tests | Must pass `source_file` and `mod_count`; there is no `groups` field |
 | `list_mod_updates` treated `subdir\file` as a literal filename on Linux (CI red) | `app/services/mod_fetcher.py` | Normalise `\` → `/` before joining, as `download_mod_folder` does |
+| Caddy listing names trusted: `../x.dll` wrote outside the mod folder; `update-mods` deleted subfolder files (`addons//x.pbo` keys) | `app/services/mod_fetcher.py`, `mod_updater.py` | `_walk` strips the `/` Caddy appends to dir names, then `validate_name`; an unsafe name raises `UnsafeListingError` (502) before any download or removal (never skip: a filtered listing makes `update_mod_folder` delete); `ensure_within` on every target |

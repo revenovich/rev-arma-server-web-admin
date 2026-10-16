@@ -24,6 +24,10 @@ class UnsafePathError(ValueError):
     """A client-supplied name or path would leave its base directory (mapped to HTTP 400)."""
 
 
+class UnsafeListingError(UnsafePathError):
+    """The mod file server listed a name that isn't one safe path component (mapped to HTTP 502)."""
+
+
 def validate_name(name: str) -> str:
     """Return *name* if it is safe to use as one path component, else raise UnsafePathError.
 

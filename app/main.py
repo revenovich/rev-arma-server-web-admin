@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.config import load_settings
 from app.core.logging import AccessLogMiddleware, configure_logging
-from app.core.paths import UnsafePathError
+from app.core.paths import UnsafeListingError, UnsafePathError
 
 log = structlog.get_logger()
 
@@ -71,6 +71,11 @@ def create_app(config_path: Path | None = None) -> FastAPI:
     @app.exception_handler(UnsafePathError)
     async def unsafe_path_handler(request: Request, exc: UnsafePathError) -> JSONResponse:
         return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+    # The same check failing on the file server's listing is the upstream's fault.
+    @app.exception_handler(UnsafeListingError)
+    async def unsafe_listing_handler(request: Request, exc: UnsafeListingError) -> JSONResponse:
+        return JSONResponse(status_code=502, content={"detail": str(exc)})
 
     _register_routes(app)
     _mount_frontend(app)

@@ -2,13 +2,13 @@
 
 Audit of `master` @ `6485de8` (2026-10-16). Every item below was traced in code; items marked **✔ reproduced** were also confirmed by running the code (TestClient probe, test suite, linters). Line numbers are as of that commit.
 
-_Update: the CI failures in §3 have since been fixed. CI's checks now pass on Linux. The path-traversal holes S0, S1 and S6 and the P12 rename failure are also fixed (marked **✅ Fixed** in place). Everything else is as audited._
+_Update: the CI failures in §3 have since been fixed. CI's checks now pass on Linux. The path-traversal holes S0, S1, S6 and S7 and the P12 rename failure are also fixed (marked **✅ Fixed** in place). Everything else is as audited._
 
 ## TL;DR
 
 The rewrite has a sound architecture and good unit-test coverage, but **several headline features don't work end-to-end**, and there are **path-traversal holes that let a request delete or write files outside their directories**:
 
-1. **Security:** ✅ *Fixed:* `POST /api/presets/update-mods` could be steered into deleting files across the game install (S0), and mission upload wrote outside `mpmissions` (S1). *Still open:* auth is off by default and silently stays off when the app is started from another directory (S2).
+1. **Security:** ✅ *Fixed:* `POST /api/presets/update-mods` could be steered into deleting files across the game install (S0), mission upload wrote outside `mpmissions` (S1), and file names in the Caddy listing could write outside the mod folder (S7). *Still open:* auth is off by default and silently stays off when the app is started from another directory (S2).
 2. **Servers can't be run reliably:**
    - stdout is piped but never read, so the server blocks once the pipe fills (P5).
    - The A2S status query targets the wrong port, so servers show offline, headless clients never start, and the UI never offers **Stop** (P4, P13).
@@ -119,7 +119,8 @@ Original finding: `upload_missions` writes to the system temp dir, then `Path.re
   - `/fetch` names folders after the display name without `@` (`presets.py:138`).
   - `/link` only considers `@`-prefixed folders (`mod_linker.py:65`).
   - `clean-orphans` compares lowercased display names with folder names (`mod_cleaner.py:25-47`), so a mod that is still in use but named differently (`@CUP_Terrains_Core` vs "CUP Terrains - Core") gets `rmtree`'d.
-- `update-mods` deletes local files the server listing doesn't contain. If Caddy's JSON listing returns directory names with a trailing `/` (which `_folder_url`'s stripping suggests), `_walk` builds keys like `addons//x.pbo`, nothing matches, and every file in a subfolder is deleted after downloading. *Verify against the real Caddy before relying on this pipeline.*
+- ~~`update-mods` deletes local files the server listing doesn't contain. If Caddy's JSON listing returns directory names with a trailing `/` (which `_folder_url`'s stripping suggests), `_walk` builds keys like `addons//x.pbo`, nothing matches, and every file in a subfolder is deleted after downloading.~~ **✅ Fixed with S7.** Caddy's `browsetplcontext.go` does append `/` to directory names. `_walk` now strips that slash before validating the name, so keys are `addons/x.pbo`. Test: `test_update_mod_folder_keeps_subfolder_files_from_caddy_listing`. The rest of the pipeline still hasn't been run against a real Caddy.
+- `/fetch` and `/sync-missing` stop at the first mod that fails: a rejected listing (S7, 502), a Caddy HTTP error or a failed download. The response then reports nothing for the mods before it, although their files stay on disk, and the mods after it are never tried. *Fix:* catch errors per mod in both loops, record `{"mod": …, "status": "error", "detail": …}` in `results`, and carry on.
 
 ### P21 — Launch arguments: server-side mods and branches
 - `config.serverMods` is prepended to `-mod=` (`server.py:126-129`) instead of being passed as `-serverMod=`, so "server-only" mods are required of every client.
@@ -144,6 +145,7 @@ Original finding: `upload_missions` writes to the system temp dir, then `Path.re
 | S4 | Medium | **`server.cfg` injection.** No escaping in `write_server_cfg` (P10), so anyone who can edit a server can inject arbitrary `server.cfg` directives through MOTD/hostname. Low risk if only admins have access, but it also breaks benign input containing `"`. |
 | S5 | Medium | **The brute-force lockout is weak.** It's per-IP and in-memory, and the counter dicts grow without bound (one entry per IP). Behind a reverse proxy every client shares one IP, so one attacker locks out everyone. The WS path increments the same counter on every reconnect (P17). |
 | S6 | Low | **✅ Fixed.** Download and delete resolve the filename through `missions.mission_path` → `safe_join`. That rejects separators and `..` in the URL segment and uses `Path.is_relative_to` instead of a string prefix. Both return 400. *Original finding:* **Path-prefix check.** `download_mission`/`delete_mission` use `str(path).startswith(str(base))` (`app/api/missions.py:64,79`), which also accepts a sibling such as `mpmissions_old\`. On Windows a single URL path segment can carry `..\mpmissions_old\x.pbo`, so the sibling is reachable there. Use `Path.is_relative_to`. |
+| S7 | High | **✅ Fixed.** `mod_fetcher._walk` passes every listing name through `validate_name` (after stripping the `/` Caddy appends to directory names). One unsafe name raises `UnsafeListingError` for the whole folder, with a structlog warning, before anything is downloaded or removed. The request returns 502, since the file server is at fault, not the request. `UnsafeListingError` subclasses `UnsafePathError`, so existing handlers still catch it. Entries are rejected rather than skipped because `update_mod_folder` removes local files that a filtered listing would leave out. `download_mod_folder` and `update_mod_folder` also check every target with `ensure_within(dest_path, …)` up front, which catches a symlink inside the mod folder that points out of it. Tests: `tests/backend/unit/test_mod_fetcher.py`, `test_mod_updater.py` (Caddy mocked with `respx`) and `test_update_mods_rejects_unsafe_caddy_listing`. *Original finding:* **Caddy listing names were trusted (✔ reproduced).** `_walk` built relative paths from `item["name"]` unchecked, and `download_mod_folder`/`update_mod_folder` wrote to `dest_path / rel_path`. A listing entry `../evil.txt` (or one containing `\`, or an absolute/drive path) was written outside the mod folder. A compromised or misconfigured file server could drop files such as DLLs anywhere the app can write. The removal pass only walks `dest_path.rglob`, so it stayed inside the folder. |
 
 Also on the security side:
 - **Request bodies are parsed before `require_auth` runs, with no size limits.** Unauthenticated clients can make the app buffer large JSON bodies or spool large multipart uploads to disk. Put a body-size limit in front (reverse proxy or middleware).
@@ -230,7 +232,7 @@ Other test-suite observations:
 
 ## 6. Suggested order of work
 
-1. **Close the destructive holes now**: ~~S0 (`update-mods` and the other preset path joins), S1 (upload filename)~~ ✅ fixed. S2 (fail-open auth / CWD-relative config) is still open. Until it's fixed, don't expose the panel beyond localhost or a VPN.
+1. **Close the destructive holes now**: ~~S0 (`update-mods` and the other preset path joins), S1 (upload filename), S7 (Caddy listing names)~~ ✅ fixed. S2 (fail-open auth / CWD-relative config) is still open. Until it's fixed, don't expose the panel beyond localhost or a VPN.
 2. ~~**Make CI green**: ruff `N815` ignore plus autofix, fix or delete `list_mod_updates`, and the two ESLint errors.~~ **Done** (§3); `list_mod_updates` was fixed, not deleted.
 3. **Make the core loop work**: P5 (drain stdout), P4 (query port), P13 (Stop button), P6 (TimeoutError), P1 (partial PUT), P3 (WS payload), P22 (no reload in prod). Add one integration test per fix that exercises the *real* contract.
 4. **Stop data loss and corruption**: P19 (`servers.json` load/save), P7 and P23 (id collisions and re-keying), P8 (stale form across servers, rename navigation), P9 (validation), P10 (cfg escaping), P14 (`template`).
