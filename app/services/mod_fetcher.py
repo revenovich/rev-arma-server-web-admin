@@ -126,7 +126,7 @@ async def list_mod_updates(
     all_files = await list_mod_files(folder_url, auth)
     stale: list[tuple[str, str, int]] = []
     for rel_path, file_url, server_size in all_files:
-        # Normalize backslashes so a Windows-style server path matches on any OS
+        # Normalize backslashes so Windows-style server paths resolve on Linux too
         local = dest_path / Path(rel_path.replace("\\", "/"))
         if not local.exists():
             stale.append((rel_path, file_url, server_size))

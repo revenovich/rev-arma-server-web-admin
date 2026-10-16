@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from app.api import _fail_counts, _fail_times, _LOCKOUT_SECONDS, _LOCKOUT_THRESHOLD
+from app.api import _LOCKOUT_SECONDS, _LOCKOUT_THRESHOLD, _fail_counts, _fail_times
 from app.core.config import get_settings
 
 router = APIRouter()

@@ -14,6 +14,8 @@ from app.services import workshop as workshop_svc
 
 router = APIRouter(prefix="/api/missions", dependencies=[Depends(require_auth)])
 
+_MAX_FILE_SIZE = 512 * 1024 * 1024  # 512 MB per file
+
 
 def _get_settings(request: Request) -> Settings:
     return request.app.state.settings
@@ -33,8 +35,6 @@ async def upload_missions(
     files: Annotated[list[UploadFile], File()],
     settings: Annotated[Settings, Depends(_get_settings)],
 ) -> dict[str, Any]:
-    _MAX_FILE_SIZE = 512 * 1024 * 1024  # 512 MB per file
-
     if len(files) > 64:
         raise HTTPException(status_code=400, detail="Maximum 64 files per upload")
 

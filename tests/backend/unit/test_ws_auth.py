@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import base64
-import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -42,7 +41,6 @@ def test_check_ws_auth_disabled(tmp_path) -> None:
     """When no credentials are configured, auth is always accepted."""
     import json
 
-    from app.core.config import get_settings
 
     config_file = tmp_path / "config.json"
     config_file.write_text(

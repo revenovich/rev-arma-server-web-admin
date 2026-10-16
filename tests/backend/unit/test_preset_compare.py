@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 
 from app.schemas.preset import ModEntry, Preset
-from app.services.preset_compare import compare_presets, _mod_key
+from app.services.preset_compare import _mod_key, compare_presets
 
 
 def _mod(name: str, steam_id: str | None = None) -> ModEntry:

@@ -1,7 +1,6 @@
 """Unit tests for app.domain.missions — list, save, delete."""
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest

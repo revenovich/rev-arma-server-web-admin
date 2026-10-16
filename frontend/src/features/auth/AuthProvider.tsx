@@ -1,15 +1,6 @@
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { useState, useCallback, useEffect, type ReactNode } from "react";
 import { api, ApiError } from "@/lib/api";
-
-interface AuthState {
-  isAuthenticated: boolean;
-  isChecking: boolean;
-  authRequired: boolean; // false when server has no auth configured
-  login: (username: string, password: string) => Promise<void>;
-  logout: () => void;
-}
-
-const AuthContext = createContext<AuthState | null>(null);
+import { AuthContext } from "./auth-context";
 
 const AUTH_KEY = "arma_auth";
 
@@ -101,19 +92,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth(): AuthState {
-  const ctx = useContext(AuthContext);
-  // Return a safe default when used outside AuthProvider (e.g. in tests)
-  if (!ctx) {
-    return {
-      isAuthenticated: true,
-      isChecking: false,
-      authRequired: false,
-      login: async () => {},
-      logout: () => {},
-    };
-  }
-  return ctx;
 }
