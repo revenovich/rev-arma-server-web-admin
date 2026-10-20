@@ -6,6 +6,8 @@ _Update: the CI failures in §3 have since been fixed. CI's checks now pass on L
 
 _Re-checked against `master` @ `2424b84` (2026-10-20, after PRs #5–#7). Since `6485de8` only the files those PRs fixed have changed (`app/api/missions.py`, `app/api/presets.py`, `app/core/paths.py`, `app/domain/missions.py`, `app/main.py`, `app/services/mod_*`, the auth split in `frontend/src/features/auth/`). Every other item is still open as written; the line numbers that moved are updated below._
 
+_End-to-end run of `master` @ `502ec9a` (2026-10-20): the built app was served by `python -m app.main` with auth on, a fake `arma3server` answered A2S, and the real UI was driven in Chromium. That run confirmed P2, P3, P5, P7, P8 (rename), P10, P14, P15, P17, P18 and P20 in the running app, found P24–P28, and showed the stale-form half of P8 no longer happens. P3, P24, P25 and P26 are now fixed._
+
 ## TL;DR
 
 The rewrite has a sound architecture and good unit-test coverage, but **several headline features don't work end-to-end**, and there are **path-traversal holes that let a request delete or write files outside their directories**:
@@ -23,7 +25,7 @@ The rewrite has a sound architecture and good unit-test coverage, but **several 
    - Duplicate titles and clones overwrite servers (P7).
    - Switching servers saves A's form onto B (P8).
    - One invalid record in `servers.json` drops every record after it on the next save (P19).
-5. **Live updates:** WebSocket "servers" events wipe the UI's server list instead of refreshing it (P3).
+5. ~~**Live updates:** WebSocket "servers" events wipe the UI's server list instead of refreshing it (P3).~~ ✅ Fixed.
 6. ~~**CI on Linux:** ruff (118 errors, 96 of them intentional schema names), one Windows-only-passing test, and two ESLint errors.~~ **Fixed** (§3).
 
 Unit tests mock both sides of each contract (frontend tests mock `api`, E2E mocks every `/api/**` route), which is why the suites are green while the integrated app is broken. Contract-level tests are the biggest missing piece.
@@ -45,7 +47,10 @@ Even after P1 is fixed, these values would only end up as extra keys in `servers
 - `write_profile_cfg` is always called with defaults. `DifficultyTab` only sends `forcedDifficulty` and drops its flag toggles. The profile is written to `<path>/<id>.Arma3Profile`, but `-profiles=`/`-name=` are never passed, so Arma won't find it.
 *Fix:* drive all three writers from the stored server record, pass `-cfg`, `-profiles`, `-name`, and add golden-file tests per tab.
 
-### P3 — WebSocket "servers" events wipe the UI's server list (✔ reproduced)
+### ~~P3 — WebSocket "servers" events wipe the UI's server list~~ ✅ Fixed
+**Fixed:** `useServerStatus` now refetches every `["servers", …]` query (the list and each detail query) when the payload isn't an array, and still writes a full list (the WS snapshot) into the list and each per-server entry. This also fixes P26. Test: `useServerStatus.test.tsx` "keeps the list and refetches it on the backend's null 'changed' signal" (it replays the backend's real envelope).
+
+Original finding (✔ reproduced, also in the e2e run: the Overview and sidebar went empty about 5 s after a server started):
 Every backend publisher sends `{"type": "servers", "payload": null}` as a "changed" signal (`servers.py:37,60,72,122`, `server.py:179,203,216`). `useServerStatus` (`frontend/src/hooks/useServerStatus.ts:20`) treats the payload as the new list and does `setQueryData(["servers"], null)`. The Overview then flips to "No servers yet" on every create/update/delete/start/stop, and **every 5 s while any server is running**. The `server` / `server_state` handlers it also implements are never sent by the backend.
 *Fix:* pick one contract. Either publish `[s.to_json() for s in manager.servers]`, or have the client `invalidateQueries` on a null payload. Add a test that runs the real backend envelope through the hook.
 
@@ -66,6 +71,7 @@ Original finding: `server.py:188` catches only builtin `TimeoutError`. Before 3.
 `id = slugify(title)` and `Manager.add` doesn't check for collisions (`manager.py:30`). Creating a second "My Server", or pressing **Clone** twice ("Copy of X" both times), replaces the first entry in memory and in `servers.json`. Renaming one server to another's title in `Manager.update` has the same effect.
 
 ### P8 — Renaming a server breaks the detail page; switching servers keeps stale form state
+_E2E run: the rename half reproduces ("Failed to load server"). The stale-form half does not: `AnimatedOutlet` keys its `<Outlet/>` by location, so the tab remounts when `:id` changes._
 - A rename on GeneralTab changes the id, but the page stays on `/servers/<old-id>/…` and shows "Failed to load server". It needs a `navigate()` to the new id.
 - The tab components stay mounted when the `:id` param changes (React Router reuses the element). `GeneralTab` only resets the form when `title === ""`, and the other tabs only reset when `!initialized`. Going from server A to server B in the sidebar shows **A's values on B's page**, and Save writes them to B. Fix with `key={id}` on the `<Outlet/>`, or reset on id change.
 
@@ -87,7 +93,7 @@ Original finding: `upload_missions` writes to the system temp dir, then `Path.re
 
 ### ~~P13 — No Stop button for a running server~~ ✅ Fixed
 ~~`ServerDetailScreen.tsx:55` and `ServerCard.tsx:15` decide online/offline, and Start vs Stop, from `state.online` (A2S) instead of `pid`. Combined with P3 and P4, a started server keeps showing **Start**. Pressing it again just returns `already_running`, so the UI has no way to stop the server. Base the button on `pid != null` and the status dot on `state`.~~
-**Fixed:** Start/Stop now follow `pid != null` and the status dot follows `state.online`, in both `ServerCard` and `ServerDetailScreen`. A started server shows **Stop** with an offline dot until it answers A2S. P3 still means the list only refreshes on refetch, not on WS events.
+**Fixed:** Start/Stop now follow `pid != null` and the status dot follows `state.online`, in both `ServerCard` and `ServerDetailScreen`. A started server shows **Stop** with an offline dot until it answers A2S. With P3 and P26 fixed, the dot turns green on the next status poll.
 
 ### P14 — Mission rotation and missions migrated from the Node app write the wrong `template`
 - `MissionsTab.tsx:332` adds `m.name`, the full filename (`co10.Altis.pbo`). Arma expects `template = "co10.Altis";` with no `.pbo`, which is what the backend golden test (`tests/backend/unit/test_config_writer.py:138`) asserts.
@@ -141,6 +147,23 @@ Original finding: `main.py:141`. In production, any `.py` change or `git pull` r
 
 ### P23 — `PUT /api/servers/{id}/config` renames without re-keying (500)
 `update_server_config` (`servers.py:118`) calls `server.update(body)` directly, bypassing `Manager.update`. If `title` changes, the manager's dict key stays old: `GET /<new-id>` returns 404, and a later `PUT /<old-id>` crashes with a `KeyError` at `manager.py:48`.
+
+### ~~P24 — A wrong password opens the browser's login dialog instead of the form's error~~ ✅ Fixed
+~~Every 401 from `require_auth` carried `WWW-Authenticate: Basic` (`app/api/__init__.py`). Chromium answers that on a `fetch` with its native credentials dialog (headless: the request hangs), so the login form sat on "Signing in…" and "Invalid username or password" never showed. The same happened to any request after a password change.~~
+**Fixed:** the SPA sends `X-Requested-With: XMLHttpRequest` on every API call (`frontend/src/lib/api.ts`), and `require_auth` leaves the challenge off for those. Plain navigations such as download links still get it, so P17's download prompt behaves as before. Tests: `test_spa_request_with_wrong_credentials_gets_no_basic_challenge`, `test_plain_browser_request_still_gets_basic_challenge`, and `api.test.ts` "marks JSON and upload requests with X-Requested-With".
+
+### ~~P25 — The Missions tab forgets Auto Select Mission and Random Mission Order~~ ✅ Fixed
+~~`MissionsTab` saved both flags (they land in `servers.json` as extra keys) but initialised them with `useState(false)` and never read them back. After a reload both showed off, and the next save from that tab wrote `false` over the stored values.~~
+**Fixed:** they're loaded with the rotation. Test: `missions-tab.test.tsx` "loads Auto Select Mission and Random Mission Order from the server and saves them back". They still don't reach `server.cfg` (P2).
+
+### ~~P26 — The detail page never shows a started server coming online~~ ✅ Fixed
+~~After Start the header kept the grey dot and no player count until a reload, because WS events never refreshed the `["servers", id]` query.~~ **Fixed with P3.**
+
+### P27 — Clone keeps the original's port
+"Copy of X" gets X's game port, with no warning. Starting both makes the second one fail to bind (and its A2S port clashes too). Pick the next free port pair, or at least warn.
+
+### P28 — Raw timestamps on the Missions and Logs screens
+Missions show ISO strings (`2026-10-20T08:30:11.512257Z`), and logs show Unix floats (`1792485519.407887`, from `LogSchema.created` being `str(st_ctime)`). Format both in the UI, and return logs' times in the same ISO form as missions.
 
 ## 2. Potential issues (latent bugs, security, platform)
 
@@ -244,7 +267,7 @@ Other test-suite observations:
 
 1. **Close the destructive holes now**: ~~S0 (`update-mods` and the other preset path joins), S1 (upload filename), S7 (Caddy listing names)~~ ✅ fixed. S2 (fail-open auth / CWD-relative config) is still open. Until it's fixed, don't expose the panel beyond localhost or a VPN.
 2. ~~**Make CI green**: ruff `N815` ignore plus autofix, fix or delete `list_mod_updates`, and the two ESLint errors.~~ **Done** (§3); `list_mod_updates` was fixed, not deleted.
-3. **Make the core loop work**: P5 (drain stdout), ~~P4 (query port), P13 (Stop button), P6 (TimeoutError), P1 (partial PUT)~~ ✅, P3 (WS payload), ~~P22 (no reload in prod)~~ ✅. Add one integration test per fix that exercises the *real* contract.
+3. **Make the core loop work**: P5 (drain stdout), ~~P4 (query port), P13 (Stop button), P6 (TimeoutError), P1 (partial PUT)~~ ✅, ~~P3 (WS payload)~~ ✅, ~~P22 (no reload in prod)~~ ✅. Add one integration test per fix that exercises the *real* contract.
 4. **Stop data loss and corruption**: P19 (`servers.json` load/save), P7 and P23 (id collisions and re-keying), P8 (stale form across servers, rename navigation), P9 (validation), P10 (cfg escaping), P14 (`template`).
 5. **Wire config coverage (P2, P21)** with a config-preview endpoint and golden tests, then fix or hide the dead UI (P15, P16, P18, P20).
 6. **Then features and upgrades (§5)**: Python floor, dependency cleanup, console/log streaming, player list, RCon.
