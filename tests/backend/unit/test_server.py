@@ -1,6 +1,7 @@
 """Unit tests for app.domain.server — pure logic, no subprocess."""
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -289,6 +290,43 @@ class TestServerStop:
         server._process = mock_proc
         await server.stop()
         mock_proc.terminate.assert_called_once()
+
+
+    @pytest.mark.asyncio
+    async def test_stop_kills_process_that_ignores_terminate(self, server):
+        """asyncio.wait_for raises asyncio.TimeoutError, which is not the
+        builtin TimeoutError before Python 3.11 (P6)."""
+        mock_proc = MagicMock()
+        mock_proc.wait = MagicMock()
+        server._process = mock_proc
+        hc = MagicMock()
+        server._hc_processes = [hc]
+
+        with patch(
+            "app.domain.server.asyncio.wait_for",
+            AsyncMock(side_effect=asyncio.TimeoutError),
+        ):
+            await server.stop()
+
+        mock_proc.terminate.assert_called_once()
+        mock_proc.kill.assert_called_once()
+        hc.terminate.assert_called_once()
+        assert server._hc_processes == []
+
+    @pytest.mark.asyncio
+    async def test_stop_kill_tolerates_already_exited_process(self, server):
+        mock_proc = MagicMock()
+        mock_proc.wait = MagicMock()
+        mock_proc.kill.side_effect = ProcessLookupError
+        server._process = mock_proc
+
+        with patch(
+            "app.domain.server.asyncio.wait_for",
+            AsyncMock(side_effect=asyncio.TimeoutError),
+        ):
+            await server.stop()  # Should not raise
+
+        mock_proc.kill.assert_called_once()
 
 
 class TestServerMonitor:

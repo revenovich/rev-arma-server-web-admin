@@ -9,7 +9,7 @@ Web admin panel for Arma dedicated servers: **FastAPI backend** (`app/`, port 95
 
 ## Commands
 
-Start the backend and run backend tests from the **repo root**: `config.json` and `servers.json` are resolved relative to the CWD. Don't use `python -m app.main` or `--reload` for production; it hard-codes `reload=True`, and every reload stops all running Arma servers.
+Start the backend and run backend tests from the **repo root**: `config.json` and `servers.json` are resolved relative to the CWD. Don't use `--reload` in production: every reload stops all running Arma servers. `python -m app.main` (or `uvicorn app.main:app` without `--reload`) is the production entry point.
 
 ```bash
 # Backend — Python >=3.9 (.python-version pins 3.9; CI uses 3.13). Code must stay 3.9-compatible.
@@ -80,7 +80,7 @@ CI (`.github/workflows/ci.yml`): backend = ruff → mypy (non-blocking) → pyte
 - **Windows junctions**: detect with `path.lstat()` (never `stat()`, it follows the junction); remove with `os.rmdir()` — **never `shutil.rmtree()`**, which deletes the real mod files. Remove a junction *before* moving its target folder (`mod_migrator`).
 - **Trailing slashes must match the route exactly**: collection routes are `@router.get("/")` under a prefix, so they live at `/api/X/`; item/action routes have none (`/api/servers/{id}/start`, `/api/missions/workshop`). A mismatch fails differently per environment — in dev (no `dist/`) FastAPI 307-redirects to the backend origin and the `Authorization` header is lost; in prod the SPA catch-all answers slashless GETs with `index.html` (200, not JSON) and POSTs with 405.
 - **Route order**: in `app/api/presets.py`, `GET /{name}` must stay the **last** GET route or it swallows literal routes like `/comparison`.
-- **Python 3.9 compatibility**: `asyncio.TimeoutError` is not the builtin `TimeoutError` before 3.11 — catch `(TimeoutError, asyncio.TimeoutError)` (`Server.stop()` still gets this wrong; PROJECT_HEALTH P6). `X | None` in pydantic models works on 3.9 only thanks to `from __future__ import annotations` + `eval-type-backport`; keep both.
+- **Python 3.9 compatibility**: `asyncio.TimeoutError` is not the builtin `TimeoutError` before 3.11 — catch `(TimeoutError, asyncio.TimeoutError)`. `X | None` in pydantic models works on 3.9 only thanks to `from __future__ import annotations` + `eval-type-backport`; keep both.
 - **Mod scan glob**: `Path.glob()` has no `{a,b}` brace expansion — `app/domain/mods.py` uses several explicit patterns with a `seen` set. (`MOD_SCAN_GLOB` in `paths.py` is documentation only.)
 - **HTTP client**: `httpx.AsyncClient` everywhere; do not add `requests`.
 - **Logging**: structlog with `PrintLoggerFactory`; do not add `structlog.stdlib.add_logger_name` (crashes without the stdlib factory).
@@ -122,4 +122,7 @@ CI (`.github/workflows/ci.yml`): backend = ruff → mypy (non-blocking) → pyte
 | Frontend types drifted from schemas | `src/types/api.ts` | `Mission.name/missionName/worldName`, `LogEntry.name/modified`, `Mod.formattedSize` |
 | Test helper `_preset()` incomplete | backend tests | Must pass `source_file` and `mod_count`; there is no `groups` field |
 | `list_mod_updates` treated `subdir\file` as a literal filename on Linux (CI red) | `app/services/mod_fetcher.py` | Normalise `\` → `/` before joining, as `download_mod_folder` does |
+| Partial `PUT /api/servers/{id}` (every tab but General) rejected with 400 "title cannot be empty" | `app/api/servers.py` | Only an explicit empty/`null` title is rejected; absent `title` means merge |
+| `Server.stop()` never killed a hung server on 3.9 | `app/domain/server.py` | Catch `(TimeoutError, asyncio.TimeoutError)` |
+| `python -m app.main` ran with `reload=True` | `app/main.py` | `run()` starts uvicorn without reload |
 | Caddy listing names trusted: `../x.dll` wrote outside the mod folder; `update-mods` deleted subfolder files (`addons//x.pbo` keys) | `app/services/mod_fetcher.py`, `mod_updater.py` | `_walk` strips the `/` Caddy appends to dir names, then `validate_name`; an unsafe name raises `UnsafeListingError` (502) before any download or removal (never skip: a filtered listing makes `update_mod_folder` delete); `ensure_within` on every target |

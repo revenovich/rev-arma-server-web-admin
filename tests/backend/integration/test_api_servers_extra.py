@@ -59,6 +59,44 @@ def test_update_server_empty_title_rejected(client_with_server: tuple) -> None:
     assert resp.status_code == 400
 
 
+def test_update_server_partial_body_keeps_title(client_with_server: tuple) -> None:
+    """Tabs other than General send partial bodies without `title` (P1)."""
+    c, sid = client_with_server
+    resp = c.put(f"/api/servers/{sid}", json={"max_players": 64})
+    assert resp.status_code == 200
+    assert resp.json()["title"] == "Test Server"
+    assert resp.json()["max_players"] == 64
+
+    fetched = c.get(f"/api/servers/{sid}").json()
+    assert fetched["max_players"] == 64
+    assert fetched["port"] == 2302
+
+
+def test_update_server_partial_body_is_persisted(
+    client_with_server: tuple, tmp_path: Path
+) -> None:
+    c, sid = client_with_server
+    resp = c.put(f"/api/servers/{sid}", json={"motd": "Welcome", "von": False})
+    assert resp.status_code == 200
+
+    saved = json.loads((tmp_path / "servers.json").read_text(encoding="utf-8"))
+    assert saved[0]["title"] == "Test Server"
+    assert saved[0]["motd"] == "Welcome"
+    assert saved[0]["von"] is False
+
+
+def test_update_server_null_title_rejected(client_with_server: tuple) -> None:
+    c, sid = client_with_server
+    resp = c.put(f"/api/servers/{sid}", json={"title": None})
+    assert resp.status_code == 400
+
+
+def test_update_server_partial_body_not_found(client_with_server: tuple) -> None:
+    c, _ = client_with_server
+    resp = c.put("/api/servers/ghost-id", json={"max_players": 10})
+    assert resp.status_code == 404
+
+
 def test_update_server_not_found(client_with_server: tuple) -> None:
     c, _ = client_with_server
     resp = c.put("/api/servers/ghost-id", json={"title": "Nope"})
