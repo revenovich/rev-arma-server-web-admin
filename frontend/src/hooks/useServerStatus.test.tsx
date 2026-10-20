@@ -155,6 +155,34 @@ describe("useServerStatus", () => {
 
       expect(queryClient.getQueryData(["servers"])).toEqual([]);
     });
+
+    it("also refreshes each server's own query from a full list", () => {
+      const sendEvent = captureSubscribeCallback();
+      const running = makeServer({ id: "s1", pid: 42, state: makeServerState() });
+      queryClient.setQueryData(["servers", "s1"], makeServer({ id: "s1" }));
+
+      renderHook(() => useServerStatus(), { wrapper: createWrapper() });
+      sendEvent({ type: "servers", serverId: null, payload: [running] });
+
+      expect(queryClient.getQueryData(["servers", "s1"])).toEqual(running);
+    });
+
+    // The backend publishes {"type": "servers", "serverId": null, "payload": null}
+    // as a "something changed" signal (app/domain/server.py, app/api/servers.py).
+    it("keeps the list and refetches it on the backend's null 'changed' signal", async () => {
+      const sendEvent = captureSubscribeCallback();
+      const servers = [makeServer({ id: "s1" })];
+      queryClient.setQueryData(["servers"], servers);
+      queryClient.setQueryData(["servers", "s1"], servers[0]);
+
+      renderHook(() => useServerStatus(), { wrapper: createWrapper() });
+      sendEvent({ type: "servers", serverId: null, payload: null });
+
+      expect(queryClient.getQueryData(["servers"])).toEqual(servers);
+      expect(queryClient.getQueryState(["servers"])!.isInvalidated).toBe(true);
+      // The detail page's query is refreshed too, so it shows a server coming online
+      expect(queryClient.getQueryState(["servers", "s1"])!.isInvalidated).toBe(true);
+    });
   });
 
   // ── "server" event: single server patch ───────────────────────────────────

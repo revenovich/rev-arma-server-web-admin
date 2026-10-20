@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { MissionsTab } from "./MissionsTab";
+import { useServer } from "@/hooks/useServers";
 import type { Mission, Server } from "@/types/api";
 
 const mockUpdate = vi.fn();
@@ -168,6 +169,25 @@ describe("MissionsTab", () => {
             expect.objectContaining({ params: expect.any(Array) }),
           ]),
         }),
+      );
+    });
+  });
+
+  it("loads Auto Select Mission and Random Mission Order from the server and saves them back", async () => {
+    // servers.json stores these as extra keys on the record (ServerSchema extra="allow")
+    vi.mocked(useServer).mockReturnValueOnce({
+      data: { ...MOCK_SERVER_WITH_MISSIONS, autoSelectMission: true, randomMissionOrder: true },
+      isLoading: false,
+    } as unknown as ReturnType<typeof useServer>);
+    renderTab();
+
+    expect(screen.getByRole("switch", { name: /auto select mission/i })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("switch", { name: /random mission order/i })).toHaveAttribute("aria-checked", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+    await vi.waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ autoSelectMission: true, randomMissionOrder: true }),
       );
     });
   });

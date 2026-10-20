@@ -20,6 +20,18 @@ _LOCKOUT_THRESHOLD = 5
 _LOCKOUT_SECONDS = 60.0
 
 
+def _challenge_headers(request: Request) -> dict[str, str] | None:
+    """`WWW-Authenticate: Basic` for 401s, except on the SPA's own fetches.
+
+    Browsers answer the challenge with their native login dialog, which would hide
+    the login form's error message. The SPA marks its requests with
+    X-Requested-With; plain navigations such as download links still get it.
+    """
+    if request.headers.get("x-requested-with", "").lower() == "xmlhttprequest":
+        return None
+    return {"WWW-Authenticate": "Basic"}
+
+
 def require_auth(
     credentials: Annotated[HTTPBasicCredentials | None, Depends(_security)],
     request: Request,
@@ -48,7 +60,7 @@ def require_auth(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required",
-            headers={"WWW-Authenticate": "Basic"},
+            headers=_challenge_headers(request),
         )
 
     user_ok = hmac.compare_digest(credentials.username.encode(), cfg_user.encode())
@@ -60,7 +72,7 @@ def require_auth(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
-            headers={"WWW-Authenticate": "Basic"},
+            headers=_challenge_headers(request),
         )
 
     # Successful auth — reset failure counter

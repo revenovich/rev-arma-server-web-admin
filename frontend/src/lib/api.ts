@@ -22,6 +22,9 @@ export function _getAuthHeader(): string | null {
 function buildHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    // Tells the backend to skip `WWW-Authenticate: Basic` on a 401, so the
+    // browser's own login dialog doesn't replace the login form's error.
+    "X-Requested-With": "XMLHttpRequest",
   };
   if (authHeader) {
     headers["Authorization"] = authHeader;
@@ -81,7 +84,7 @@ export const api = {
   /** POST multipart/form-data (file uploads). Skips Content-Type so browser sets it. */
   upload<T>(path: string, formData: FormData): Promise<T> {
     const url = path.startsWith("/") ? `/api${path}` : path;
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = { "X-Requested-With": "XMLHttpRequest" };
     if (authHeader) {
       headers["Authorization"] = authHeader;
     }

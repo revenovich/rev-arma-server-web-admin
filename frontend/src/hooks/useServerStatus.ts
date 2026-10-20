@@ -16,9 +16,18 @@ export function useServerStatus() {
     const unsubscribe = subscribe((event) => {
       switch (event.type) {
         case "servers": {
-          // Full server list update — replace cache
-          const servers = event.payload as Server[];
-          queryClient.setQueryData(SERVERS_KEY, servers);
+          // The WS snapshot carries the full list; every later publish sends
+          // payload null as a "something changed" signal, so refetch instead.
+          if (Array.isArray(event.payload)) {
+            const servers = event.payload as Server[];
+            queryClient.setQueryData(SERVERS_KEY, servers);
+            for (const server of servers) {
+              queryClient.setQueryData([...SERVERS_KEY, server.id], server);
+            }
+          } else {
+            // Prefix match: refreshes the list and each ["servers", id] query
+            void queryClient.invalidateQueries({ queryKey: SERVERS_KEY });
+          }
           break;
         }
         case "server": {

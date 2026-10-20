@@ -161,13 +161,17 @@ export function MissionsTab() {
   const [rotation, setRotation] = useState<MissionEntry[]>([]);
   const [rotationInitialized, setRotationInitialized] = useState(false);
 
-  if (server && !rotationInitialized) {
-    setRotation(parseMissions(server.missions ?? []));
-    setRotationInitialized(true);
-  }
-
   const [autoSelectMission, setAutoSelectMission] = useState(false);
   const [randomMissionOrder, setRandomMissionOrder] = useState(false);
+
+  if (server && !rotationInitialized) {
+    setRotation(parseMissions(server.missions ?? []));
+    // Stored as extra keys on the server record, not part of the Server type
+    const s = server as unknown as Record<string, unknown>;
+    setAutoSelectMission(s.autoSelectMission === true);
+    setRandomMissionOrder(s.randomMissionOrder === true);
+    setRotationInitialized(true);
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),

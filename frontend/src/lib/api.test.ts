@@ -74,6 +74,25 @@ describe("api fetch wrapper", () => {
     expect(headers["Authorization"]).toMatch(/^Basic /);
   });
 
+  // app/api/__init__.py omits `WWW-Authenticate: Basic` for requests carrying this
+  // header, so a wrong password shows the login form's error instead of the
+  // browser's native credentials dialog.
+  it("marks JSON and upload requests with X-Requested-With", async () => {
+    const seen: Record<string, string>[] = [];
+    vi.stubGlobal("fetch", (_url: string, init: RequestInit) => {
+      seen.push(init.headers as Record<string, string>);
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) } as Response);
+    });
+
+    await api.get("/servers/");
+    await api.upload("/missions/", new FormData());
+
+    expect(seen).toHaveLength(2);
+    for (const headers of seen) {
+      expect(headers["X-Requested-With"]).toBe("XMLHttpRequest");
+    }
+  });
+
   it("makes POST request with JSON body", async () => {
     let capturedInit: RequestInit = {};
     vi.stubGlobal(
