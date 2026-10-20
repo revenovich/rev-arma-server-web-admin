@@ -154,4 +154,17 @@ describe("ServerCard", () => {
       expect(btn.tagName).toBe("BUTTON");
     }
   });
+
+  it("shows Stop with an offline dot when the process runs but A2S has not answered", () => {
+    renderCard({ ...ONLINE_SERVER, pid: 4321, state: null });
+    expect(screen.getByRole("button", { name: /stop server/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /start server/i })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Offline")).toBeInTheDocument();
+  });
+
+  it("shows Start when no process is running even if stale A2S state says online", () => {
+    renderCard({ ...ONLINE_SERVER, pid: null });
+    expect(screen.getByRole("button", { name: /start server/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /stop server/i })).not.toBeInTheDocument();
+  });
 });

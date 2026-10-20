@@ -52,7 +52,10 @@ export function ServerDetailScreen() {
   const pathSegments = location.pathname.split("/");
   const currentTab = (pathSegments[3] as ServerTab) ?? "general";
 
+  // Status dot follows A2S; Start/Stop follows the process, which exists
+  // before (and even if never) the server answers queries.
   const online = server?.state?.online ?? false;
+  const running = server?.pid != null;
   const players = server?.state?.players ?? 0;
   const maxPlayers = server?.state?.maxPlayers ?? server?.max_players ?? 0;
 
@@ -124,7 +127,7 @@ export function ServerDetailScreen() {
         {!isLoading && server && (
           <div className="flex shrink-0 items-center gap-1.5">
             {/* Start / Stop */}
-            {online ? (
+            {running ? (
               <Button
                 variant="ghost"
                 size="sm"

@@ -2,7 +2,9 @@
 
 Audit of `master` @ `6485de8` (2026-10-16). Every item below was traced in code; items marked **✔ reproduced** were also confirmed by running the code (TestClient probe, test suite, linters). Line numbers are as of that commit.
 
-_Update: the CI failures in §3 have since been fixed. CI's checks now pass on Linux. The path-traversal holes S0, S1, S6 and S7, the P12 rename failure, and P1, P6 and P22 are also fixed (marked **✅ Fixed** in place). Everything else is as audited._
+_Update: the CI failures in §3 have since been fixed. CI's checks now pass on Linux. The path-traversal holes S0, S1, S6 and S7, the P12 rename failure, and P1, P6 and P22 are also fixed (marked **✅ Fixed** in place)._
+
+_Re-checked against `master` @ `2424b84` (2026-10-20, after PRs #5–#7). Since `6485de8` only the files those PRs fixed have changed (`app/api/missions.py`, `app/api/presets.py`, `app/core/paths.py`, `app/domain/missions.py`, `app/main.py`, `app/services/mod_*`, the auth split in `frontend/src/features/auth/`). Every other item is still open as written; the line numbers that moved are updated below._
 
 ## TL;DR
 
@@ -11,7 +13,7 @@ The rewrite has a sound architecture and good unit-test coverage, but **several 
 1. **Security:** ✅ *Fixed:* `POST /api/presets/update-mods` could be steered into deleting files across the game install (S0), mission upload wrote outside `mpmissions` (S1), and file names in the Caddy listing could write outside the mod folder (S7). *Still open:* auth is off by default and silently stays off when the app is started from another directory (S2).
 2. **Servers can't be run reliably:**
    - stdout is piped but never read, so the server blocks once the pipe fills (P5).
-   - The A2S status query targets the wrong port, so servers show offline, headless clients never start, and the UI never offers **Stop** (P4, P13).
+   - ~~The A2S status query targets the wrong port, so servers show offline, headless clients never start, and the UI never offers **Stop** (P4, P13).~~ **Fixed.**
    - ~~`stop()` crashes on Python 3.9 (P6).~~ ✅ Fixed.
 3. **Editing doesn't work:**
    - ~~Six of the seven server-detail tabs can't save (P1).~~ ✅ Fixed.
@@ -47,8 +49,9 @@ Even after P1 is fixed, these values would only end up as extra keys in `servers
 Every backend publisher sends `{"type": "servers", "payload": null}` as a "changed" signal (`servers.py:37,60,72,122`, `server.py:179,203,216`). `useServerStatus` (`frontend/src/hooks/useServerStatus.ts:20`) treats the payload as the new list and does `setQueryData(["servers"], null)`. The Overview then flips to "No servers yet" on every create/update/delete/start/stop, and **every 5 s while any server is running**. The `server` / `server_state` handlers it also implements are never sent by the backend.
 *Fix:* pick one contract. Either publish `[s.to_json() for s in manager.servers]`, or have the client `invalidateQueries` on a null payload. Add a test that runs the real backend envelope through the hook.
 
-### P4 — A2S status probably never succeeds, so headless clients never start
-`_poll_status` queries `127.0.0.1:<game port>` (`server.py:212`, `services/a2s.py:16`). Arma 3 answers Steam queries on **game port + 1**; the Node app's Gamedig query applied that offset automatically. Expect `state` to stay `None`, the UI to show "offline" for running servers, and `_start_hc()` never to run, because it's gated on a successful query. The `game` argument to `query_status` is unused. *Verify against a live server*, then apply the per-game query-port offset.
+### ~~P4 — A2S status probably never succeeds, so headless clients never start~~ ✅ Fixed
+~~`_poll_status` queries `127.0.0.1:<game port>` (`server.py:212`, `services/a2s.py:16`). Arma 3 answers Steam queries on **game port + 1**; the Node app's Gamedig query applied that offset automatically. Expect `state` to stay `None`, the UI to show "offline" for running servers, and `_start_hc()` never to run, because it's gated on a successful query. The `game` argument to `query_status` is unused. *Verify against a live server*, then apply the per-game query-port offset.~~
+**Fixed:** `services/a2s.py` `query_port()` adds the per-game offset (game port + 1 for Arma 2, Arma 2 OA and Arma 3). Arma 1, OFP and CWA answer only GameSpy, not A2S, so they still show offline. Tests: `test_query_status_reaches_arma3_on_game_port_plus_one` (real UDP round trip against a fake A2S responder) and `test_query_port_offset_per_game`. Still not checked against a live server.
 
 ### P5 — Server stdout is piped but never read
 `Server.start()` uses `stdout=PIPE, stderr=STDOUT` (`server.py:157`), but nothing reads it. Once the OS pipe buffer fills (about 64 KB on Linux), the server process blocks on write. Arma on Linux logs to stdout, so this is likely within minutes of a busy session. A related gap: the old Node app wrote this stream to `<path>/logs/*.rpt` and pruned it to 20 files. Here `cleanup_old_logs()` is never called, so **the Logs screen is empty on Linux**.
@@ -82,8 +85,9 @@ Original finding: `server.py:188` catches only builtin `TimeoutError`. Before 3.
 
 Original finding: `upload_missions` writes to the system temp dir, then `Path.rename()`s into `mpmissions` (`app/domain/missions.py:57`). `rename` fails with `EXDEV` / `WinError 17` when temp and the game dir are on different filesystems or drives, which is the README's own Windows example (`D:\Arma3Server`). Use `shutil.move` or a temp file inside the destination dir. The whole upload is also read into memory (up to 512 MB × 64 files).
 
-### P13 — No Stop button for a running server
-`ServerDetailScreen.tsx:55` and `ServerCard.tsx:15` decide online/offline, and Start vs Stop, from `state.online` (A2S) instead of `pid`. Combined with P3 and P4, a started server keeps showing **Start**. Pressing it again just returns `already_running`, so the UI has no way to stop the server. Base the button on `pid != null` and the status dot on `state`.
+### ~~P13 — No Stop button for a running server~~ ✅ Fixed
+~~`ServerDetailScreen.tsx:55` and `ServerCard.tsx:15` decide online/offline, and Start vs Stop, from `state.online` (A2S) instead of `pid`. Combined with P3 and P4, a started server keeps showing **Start**. Pressing it again just returns `already_running`, so the UI has no way to stop the server. Base the button on `pid != null` and the status dot on `state`.~~
+**Fixed:** Start/Stop now follow `pid != null` and the status dot follows `state.online`, in both `ServerCard` and `ServerDetailScreen`. A started server shows **Stop** with an offline dot until it answers A2S. P3 still means the list only refreshes on refetch, not on WS events.
 
 ### P14 — Mission rotation and missions migrated from the Node app write the wrong `template`
 - `MissionsTab.tsx:332` adds `m.name`, the full filename (`co10.Altis.pbo`). Arma expects `template = "co10.Altis";` with no `.pbo`, which is what the backend golden test (`tests/backend/unit/test_config_writer.py:138`) asserts.
@@ -117,10 +121,10 @@ Original finding: `upload_missions` writes to the system temp dir, then `Path.re
 *Fix:* validate each record on its own and skip-and-log failures, keep a `.bak` before writing, and write to a temp file then `os.replace`.
 
 ### P20 — Preset pipeline is unreliable end-to-end (traced in code, not run against a real Caddy)
-- `/api/presets/fetch` always fails with a 500. Its progress callback calls `request.app.state.loop.create_task(...)` (`presets.py:124`), but `app.state.loop` is never set. No test covers it.
+- `/api/presets/fetch` always fails with a 500. Its progress callback calls `request.app.state.loop.create_task(...)` (`presets.py:135`), but `app.state.loop` is never set. No test covers it.
 - Preset identity: the name comes from `<title>`, which is always "Arma 3" in Launcher exports; the real name is in `<meta name="arma:PresetName">`. `source_file` is the random temp filename (`preset_parser.py:65-72`). Two uploaded presets therefore collide in `comparison.unique[...]`, and re-uploading one creates a duplicate.
 - Folder naming disagrees between steps:
-  - `/fetch` names folders after the display name without `@` (`presets.py:138`).
+  - `/fetch` names folders after the display name without `@` (`presets.py:128`).
   - `/link` only considers `@`-prefixed folders (`mod_linker.py:65`).
   - `clean-orphans` compares lowercased display names with folder names (`mod_cleaner.py:25-47`), so a mod that is still in use but named differently (`@CUP_Terrains_Core` vs "CUP Terrains - Core") gets `rmtree`'d.
 - ~~`update-mods` deletes local files the server listing doesn't contain. If Caddy's JSON listing returns directory names with a trailing `/` (which `_folder_url`'s stripping suggests), `_walk` builds keys like `addons//x.pbo`, nothing matches, and every file in a subfolder is deleted after downloading.~~ **✅ Fixed with S7.** Caddy's `browsetplcontext.go` does append `/` to directory names. `_walk` now strips that slash before validating the name, so keys are `addons/x.pbo`. Test: `test_update_mod_folder_keeps_subfolder_files_from_caddy_listing`. The rest of the pipeline still hasn't been run against a real Caddy.
@@ -133,7 +137,7 @@ Original finding: `upload_missions` writes to the system temp dir, then `Path.re
 ### P22 — `python -m app.main` always runs with `reload=True` (✅ Fixed)
 ✅ **Fixed:** `python -m app.main` now calls `app.main.run()`, which starts uvicorn without reload and passes the app object (so the module isn't imported and the app built twice). For development use `uvicorn app.main:app --reload` explicitly. Test: `tests/backend/unit/test_main_entrypoint.py`.
 
-Original finding: `main.py:130`. In production, any `.py` change or `git pull` restarts the worker, and the lifespan shutdown **stops every running Arma server**. On Windows, uvicorn's reload mode uses a `SelectorEventLoop` regardless of the policy set at `main.py:15`, so server start fails with `NotImplementedError` in that mode.
+Original finding: `main.py:141`. In production, any `.py` change or `git pull` restarts the worker, and the lifespan shutdown **stops every running Arma server**. On Windows, uvicorn's reload mode uses a `SelectorEventLoop` regardless of the policy set at `main.py:15`, so server start fails with `NotImplementedError` in that mode.
 
 ### P23 — `PUT /api/servers/{id}/config` renames without re-keying (500)
 `update_server_config` (`servers.py:118`) calls `server.update(body)` directly, bypassing `Manager.update`. If `title` changes, the manager's dict key stays old: `GET /<new-id>` returns 404, and a later `PUT /<old-id>` crashes with a `KeyError` at `manager.py:48`.
@@ -147,7 +151,7 @@ Original finding: `main.py:130`. In production, any `.py` change or `git pull` r
 | S0 | **Critical** | **✅ Fixed.** Every preset path join now goes through `app.core.paths.safe_join`. It rejects `/`, `\`, `.`/`..`, NUL, empty names and drive/absolute prefixes, then requires the resolved path to be strictly inside `downloads/` (`is_relative_to`). This covers `/update-mods`, `/fetch`, `/sync-missing`, `/link`, `/unlink` and `mod_migrator`. Bad names return 400 before Caddy is contacted or anything on disk changes. Tests: `tests/backend/integration/test_api_presets.py`. *Original finding:* **`POST /api/presets/update-mods` can delete files across the game install (✔ reproduced up to path resolution).** `mod` and `group` from the request body are joined into `downloads/<group>/<mod>` (`presets.py:276-289`). `_normalize_name("@ace/../../..")` is `ace`, so a real `@ace` folder on the Caddy server matches, and the destination resolves to the **game directory itself**. `mod_updater.update_mod_folder` then unlinks every local file not in that mod's listing (`mod_updater.py:63-74`). The same traversal applies to `group` and to preset/mod names in `/fetch`, `/link`, `/unlink`, `/migrate` (`presets.py:138,179,189,259`, `mod_migrator.py:119`). Fix: validate names against `^[@\w .-]+$`, resolve paths, and require `is_relative_to(downloads)`. |
 | S1 | High | **✅ Fixed.** `save_upload` keeps only the last path component of the upload filename (either separator style), then joins it with `safe_join`. A resolved path outside `mpmissions` (e.g. through a symlink) returns 400. Tests: `tests/backend/integration/test_api_missions.py`. *Original finding:* **Path traversal on mission upload (✔ reproduced).** `save_upload` joins the client-supplied filename onto `mpmissions` without sanitising it (`app/domain/missions.py:55`). An upload named `../../escaped.pbo` is written two directories above `mpmissions`. The `.pbo` suffix is the only constraint. Fix: `Path(filename).name`, then verify `resolved.is_relative_to(base)`. |
 | S2 | High | **Auth fails open.** `config.json.example` ships with empty credentials and `host: 0.0.0.0`, so every route is open on the network: start/stop, SteamCMD, file writes, and the preset operations that delete folders. `config.json` is resolved relative to the **CWD** (`core/config.py:62`). A service started from another directory (systemd without `WorkingDirectory`, nssm without `AppDirectory`) silently finds no config and runs **with auth disabled**. Fix: resolve config relative to the project or an explicit `--config`, log a loud warning, and refuse a non-loopback `host` without credentials. |
-| S3 | Medium | **Credentials leak into logs and storage.** The browser sends `?token=base64(user:pass)` on the WS URL, and uvicorn's access log prints the full query string for every WS connect. The UI also keeps `{username, password}` as plaintext JSON in `sessionStorage` (`useAuth.tsx:79`). |
+| S3 | Medium | **Credentials leak into logs and storage.** The browser sends `?token=base64(user:pass)` on the WS URL, and uvicorn's access log prints the full query string for every WS connect. The UI also keeps `{username, password}` as plaintext JSON in `sessionStorage` (`features/auth/AuthProvider.tsx:70`). |
 | S4 | Medium | **`server.cfg` injection.** No escaping in `write_server_cfg` (P10), so anyone who can edit a server can inject arbitrary `server.cfg` directives through MOTD/hostname. Low risk if only admins have access, but it also breaks benign input containing `"`. |
 | S5 | Medium | **The brute-force lockout is weak.** It's per-IP and in-memory, and the counter dicts grow without bound (one entry per IP). Behind a reverse proxy every client shares one IP, so one attacker locks out everyone. The WS path increments the same counter on every reconnect (P17). |
 | S6 | Low | **✅ Fixed.** Download and delete resolve the filename through `missions.mission_path` → `safe_join`. That rejects separators and `..` in the URL segment and uses `Path.is_relative_to` instead of a string prefix. Both return 400. *Original finding:* **Path-prefix check.** `download_mission`/`delete_mission` use `str(path).startswith(str(base))` (`app/api/missions.py:64,79`), which also accepts a sibling such as `mpmissions_old\`. On Windows a single URL path segment can carry `..\mpmissions_old\x.pbo`, so the sibling is reachable there. Use `Path.is_relative_to`. |
@@ -217,7 +221,7 @@ Other test-suite observations:
 | **Config preview** | `GET /api/servers/{id}/config/preview` returns the exact `server.cfg` / `basic.cfg` / profile that `start()` would write. It catches P2/P10-type bugs instantly and gives users confidence. |
 | **Full `server.cfg` coverage** | `app/schemas/server_config.py`, `basic_config.py` and `server_profile.py` are already modelled. Wiring them into the writers and tabs is what turns P2 from a bug into a feature. Make `basic.cfg` and the profile per-server. |
 | **Workshop mods via SteamCMD** | `services/steamcmd.py` already runs SteamCMD with streamed output. `+workshop_download_item 107410 <id>` plus the existing `mod_linker` would give a Caddy-free mod pipeline. (Arma 3 workshop downloads need a Steam login rather than `anonymous`.) |
-| **Persist preset state** | `_presets` / `_comparison` / `_missing_report` vanish on restart (`app/api/presets.py:26`). Write them to a JSON file next to `servers.json`, and key presets by preset name instead of the temp filename. |
+| **Persist preset state** | `_presets` / `_comparison` / `_missing_report` vanish on restart (`app/api/presets.py:27`). Write them to a JSON file next to `servers.json`, and key presets by preset name instead of the temp filename. |
 | **Finish the preset UI** | 13 endpoints and the progress events are ready. The UI needs comparison, link status, missing report, sync and name-check views (P18). |
 | **Backup / export / import of servers** | `servers.json` is the only state. Add download/upload with schema validation (reuse `scripts/migrate_servers_json.py`). |
 | **Better auth** | Replace Basic-in-sessionStorage with a login endpoint that issues an HttpOnly session cookie. That fixes WS token-in-URL, downloads without auth (P17) and plaintext storage at once. Optional later: multiple users/roles and an audit log of start/stop/edit. |
@@ -240,7 +244,7 @@ Other test-suite observations:
 
 1. **Close the destructive holes now**: ~~S0 (`update-mods` and the other preset path joins), S1 (upload filename), S7 (Caddy listing names)~~ ✅ fixed. S2 (fail-open auth / CWD-relative config) is still open. Until it's fixed, don't expose the panel beyond localhost or a VPN.
 2. ~~**Make CI green**: ruff `N815` ignore plus autofix, fix or delete `list_mod_updates`, and the two ESLint errors.~~ **Done** (§3); `list_mod_updates` was fixed, not deleted.
-3. **Make the core loop work**: P5 (drain stdout), P4 (query port), P13 (Stop button), ~~P6 (TimeoutError), P1 (partial PUT)~~ ✅, P3 (WS payload), ~~P22 (no reload in prod)~~ ✅. Add one integration test per fix that exercises the *real* contract.
+3. **Make the core loop work**: P5 (drain stdout), ~~P4 (query port), P13 (Stop button), P6 (TimeoutError), P1 (partial PUT)~~ ✅, P3 (WS payload), ~~P22 (no reload in prod)~~ ✅. Add one integration test per fix that exercises the *real* contract.
 4. **Stop data loss and corruption**: P19 (`servers.json` load/save), P7 and P23 (id collisions and re-keying), P8 (stale form across servers, rename navigation), P9 (validation), P10 (cfg escaping), P14 (`template`).
 5. **Wire config coverage (P2, P21)** with a config-preview endpoint and golden tests, then fix or hide the dead UI (P15, P16, P18, P20).
 6. **Then features and upgrades (§5)**: Python floor, dependency cleanup, console/log streaming, player list, RCon.

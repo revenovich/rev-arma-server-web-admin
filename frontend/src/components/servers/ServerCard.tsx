@@ -12,7 +12,10 @@ interface ServerCardProps {
 }
 
 export function ServerCard({ server }: ServerCardProps) {
+  // Status dot follows A2S; Start/Stop follows the process, which exists
+  // before (and even if never) the server answers queries.
   const online = server.state?.online ?? false;
+  const running = server.pid != null;
   const players = server.state?.players ?? 0;
   const maxPlayers = server.state?.maxPlayers ?? server.max_players;
 
@@ -99,7 +102,7 @@ export function ServerCard({ server }: ServerCardProps) {
           </Button>
 
           {/* Start / Stop */}
-          {online ? (
+          {running ? (
             <Button
               variant="ghost"
               size="sm"
