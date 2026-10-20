@@ -13,7 +13,7 @@ The rewrite has a sound architecture and good unit-test coverage, but **several 
 1. **Security:** ✅ *Fixed:* `POST /api/presets/update-mods` could be steered into deleting files across the game install (S0), mission upload wrote outside `mpmissions` (S1), and file names in the Caddy listing could write outside the mod folder (S7). *Still open:* auth is off by default and silently stays off when the app is started from another directory (S2).
 2. **Servers can't be run reliably:**
    - stdout is piped but never read, so the server blocks once the pipe fills (P5).
-   - The A2S status query targets the wrong port, so servers show offline, headless clients never start, and the UI never offers **Stop** (P4, P13).
+   - ~~The A2S status query targets the wrong port, so servers show offline, headless clients never start, and the UI never offers **Stop** (P4, P13).~~ **Fixed.**
    - `stop()` crashes on Python 3.9 (P6).
 3. **Editing doesn't work:**
    - Six of the seven server-detail tabs can't save (P1).
@@ -47,8 +47,9 @@ Even after P1 is fixed, these values would only end up as extra keys in `servers
 Every backend publisher sends `{"type": "servers", "payload": null}` as a "changed" signal (`servers.py:37,60,72,122`, `server.py:179,203,216`). `useServerStatus` (`frontend/src/hooks/useServerStatus.ts:20`) treats the payload as the new list and does `setQueryData(["servers"], null)`. The Overview then flips to "No servers yet" on every create/update/delete/start/stop, and **every 5 s while any server is running**. The `server` / `server_state` handlers it also implements are never sent by the backend.
 *Fix:* pick one contract. Either publish `[s.to_json() for s in manager.servers]`, or have the client `invalidateQueries` on a null payload. Add a test that runs the real backend envelope through the hook.
 
-### P4 — A2S status probably never succeeds, so headless clients never start
-`_poll_status` queries `127.0.0.1:<game port>` (`server.py:212`, `services/a2s.py:16`). Arma 3 answers Steam queries on **game port + 1**; the Node app's Gamedig query applied that offset automatically. Expect `state` to stay `None`, the UI to show "offline" for running servers, and `_start_hc()` never to run, because it's gated on a successful query. The `game` argument to `query_status` is unused. *Verify against a live server*, then apply the per-game query-port offset.
+### ~~P4 — A2S status probably never succeeds, so headless clients never start~~ ✅ Fixed
+~~`_poll_status` queries `127.0.0.1:<game port>` (`server.py:212`, `services/a2s.py:16`). Arma 3 answers Steam queries on **game port + 1**; the Node app's Gamedig query applied that offset automatically. Expect `state` to stay `None`, the UI to show "offline" for running servers, and `_start_hc()` never to run, because it's gated on a successful query. The `game` argument to `query_status` is unused. *Verify against a live server*, then apply the per-game query-port offset.~~
+**Fixed:** `services/a2s.py` `query_port()` adds the per-game offset (game port + 1 for Arma 2, Arma 2 OA and Arma 3). Arma 1, OFP and CWA answer only GameSpy, not A2S, so they still show offline. Tests: `test_query_status_reaches_arma3_on_game_port_plus_one` (real UDP round trip against a fake A2S responder) and `test_query_port_offset_per_game`. Still not checked against a live server.
 
 ### P5 — Server stdout is piped but never read
 `Server.start()` uses `stdout=PIPE, stderr=STDOUT` (`server.py:157`), but nothing reads it. Once the OS pipe buffer fills (about 64 KB on Linux), the server process blocks on write. Arma on Linux logs to stdout, so this is likely within minutes of a busy session. A related gap: the old Node app wrote this stream to `<path>/logs/*.rpt` and pruned it to 20 files. Here `cleanup_old_logs()` is never called, so **the Logs screen is empty on Linux**.
@@ -80,8 +81,9 @@ Every backend publisher sends `{"type": "servers", "payload": null}` as a "chang
 
 Original finding: `upload_missions` writes to the system temp dir, then `Path.rename()`s into `mpmissions` (`app/domain/missions.py:57`). `rename` fails with `EXDEV` / `WinError 17` when temp and the game dir are on different filesystems or drives, which is the README's own Windows example (`D:\Arma3Server`). Use `shutil.move` or a temp file inside the destination dir. The whole upload is also read into memory (up to 512 MB × 64 files).
 
-### P13 — No Stop button for a running server
-`ServerDetailScreen.tsx:55` and `ServerCard.tsx:15` decide online/offline, and Start vs Stop, from `state.online` (A2S) instead of `pid`. Combined with P3 and P4, a started server keeps showing **Start**. Pressing it again just returns `already_running`, so the UI has no way to stop the server. Base the button on `pid != null` and the status dot on `state`.
+### ~~P13 — No Stop button for a running server~~ ✅ Fixed
+~~`ServerDetailScreen.tsx:55` and `ServerCard.tsx:15` decide online/offline, and Start vs Stop, from `state.online` (A2S) instead of `pid`. Combined with P3 and P4, a started server keeps showing **Start**. Pressing it again just returns `already_running`, so the UI has no way to stop the server. Base the button on `pid != null` and the status dot on `state`.~~
+**Fixed:** Start/Stop now follow `pid != null` and the status dot follows `state.online`, in both `ServerCard` and `ServerDetailScreen`. A started server shows **Stop** with an offline dot until it answers A2S. P3 still means the list only refreshes on refetch, not on WS events.
 
 ### P14 — Mission rotation and missions migrated from the Node app write the wrong `template`
 - `MissionsTab.tsx:332` adds `m.name`, the full filename (`co10.Altis.pbo`). Arma expects `template = "co10.Altis";` with no `.pbo`, which is what the backend golden test (`tests/backend/unit/test_config_writer.py:138`) asserts.
@@ -236,7 +238,7 @@ Other test-suite observations:
 
 1. **Close the destructive holes now**: ~~S0 (`update-mods` and the other preset path joins), S1 (upload filename), S7 (Caddy listing names)~~ ✅ fixed. S2 (fail-open auth / CWD-relative config) is still open. Until it's fixed, don't expose the panel beyond localhost or a VPN.
 2. ~~**Make CI green**: ruff `N815` ignore plus autofix, fix or delete `list_mod_updates`, and the two ESLint errors.~~ **Done** (§3); `list_mod_updates` was fixed, not deleted.
-3. **Make the core loop work**: P5 (drain stdout), P4 (query port), P13 (Stop button), P6 (TimeoutError), P1 (partial PUT), P3 (WS payload), P22 (no reload in prod). Add one integration test per fix that exercises the *real* contract.
+3. **Make the core loop work**: P5 (drain stdout), ~~P4 (query port), P13 (Stop button)~~ ✅, P6 (TimeoutError), P1 (partial PUT), P3 (WS payload), P22 (no reload in prod). Add one integration test per fix that exercises the *real* contract.
 4. **Stop data loss and corruption**: P19 (`servers.json` load/save), P7 and P23 (id collisions and re-keying), P8 (stale form across servers, rename navigation), P9 (validation), P10 (cfg escaping), P14 (`template`).
 5. **Wire config coverage (P2, P21)** with a config-preview endpoint and golden tests, then fix or hide the dead UI (P15, P16, P18, P20).
 6. **Then features and upgrades (§5)**: Python floor, dependency cleanup, console/log streaming, player list, RCon.
