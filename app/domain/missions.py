@@ -64,6 +64,14 @@ async def save_upload(tmp_path: Path, filename: str, settings: Settings) -> str:
     style), so ``../../x.pbo`` and ``C:\\x.pbo`` are both stored as ``x.pbo``.
     """
     name = PureWindowsPath(filename).name.lower()
+    directory = missions_dir(settings)
+    # Replace a file that differs only in case (e.g. one copied in by hand as
+    # dm_test.VR.pbo) instead of storing a second copy next to it
+    if directory.is_dir():
+        for entry in directory.iterdir():
+            if entry.name.lower() == name and entry.is_file():
+                name = entry.name
+                break
     dest = mission_path(name, settings)
     dest.parent.mkdir(parents=True, exist_ok=True)
     # shutil.move falls back to copy+delete when the temp dir is on another
@@ -72,7 +80,10 @@ async def save_upload(tmp_path: Path, filename: str, settings: Settings) -> str:
     return name
 
 
-async def delete_mission(filename: str, settings: Settings) -> None:
+async def delete_mission(filename: str, settings: Settings) -> bool:
+    """Delete *filename*; False when there is no such mission."""
     target = mission_path(filename, settings)
-    if target.exists():
-        target.unlink()
+    if not target.is_file():
+        return False
+    target.unlink()
+    return True

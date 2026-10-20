@@ -80,7 +80,7 @@ describe("AddServerDialog", () => {
     expect(screen.getByRole("button", { name: /create/i })).not.toBeDisabled();
   });
 
-  it("calls createServer with title and default port on submit", async () => {
+  it("leaves the port out when it is empty, so the backend picks a free one", async () => {
     renderDialog();
     fireEvent.click(getTrigger());
     await waitFor(() => screen.getByLabelText(/server name/i));
@@ -90,9 +90,52 @@ describe("AddServerDialog", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /create/i }));
 
+    expect(mockCreate).toHaveBeenCalledWith({ title: "Alpha Server", password: null }, expect.anything());
+  });
+
+  it("sends a typed port and refuses an out-of-range one", async () => {
+    renderDialog();
+    fireEvent.click(getTrigger());
+    await waitFor(() => screen.getByLabelText(/server name/i));
+    fireEvent.change(screen.getByLabelText(/server name/i), { target: { value: "Alpha" } });
+
+    fireEvent.change(screen.getByLabelText(/^port$/i), { target: { value: "65535" } });
+    expect(screen.getByRole("button", { name: /create/i })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText(/^port$/i), { target: { value: "2402" } });
+    fireEvent.click(screen.getByRole("button", { name: /create/i }));
     expect(mockCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Alpha Server", port: 2302 }),
+      expect.objectContaining({ title: "Alpha", port: 2402 }),
       expect.anything(),
     );
+  });
+
+  it("sends one request when Create is clicked twice quickly", async () => {
+    renderDialog();
+    fireEvent.click(getTrigger());
+    await waitFor(() => screen.getByLabelText(/server name/i));
+    fireEvent.change(screen.getByLabelText(/server name/i), { target: { value: "Alpha" } });
+
+    const create = screen.getByRole("button", { name: /create/i });
+    fireEvent.click(create);
+    fireEvent.click(create);
+
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts empty again after Cancel", async () => {
+    renderDialog();
+    fireEvent.click(getTrigger());
+    await waitFor(() => screen.getByLabelText(/server name/i));
+    fireEvent.change(screen.getByLabelText(/server name/i), { target: { value: "Stale" } });
+    fireEvent.change(screen.getByLabelText(/^port$/i), { target: { value: "2402" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    fireEvent.click(getTrigger());
+    await waitFor(() => screen.getByLabelText(/server name/i));
+
+    expect(screen.getByLabelText(/server name/i)).toHaveValue("");
+    expect(screen.getByLabelText(/^port$/i)).toHaveValue(null);
   });
 });

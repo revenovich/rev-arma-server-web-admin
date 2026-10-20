@@ -18,7 +18,7 @@ export function LogsScreen() {
   const [deletingFile, setDeletingFile] = useState<string | null>(null);
 
   const deleteLog = useMutation({
-    mutationFn: (name: string) => api.del(`/logs/${name}`),
+    mutationFn: (name: string) => api.del(`/logs/${encodeURIComponent(name)}`),
     onMutate: (name) => setDeletingFile(name),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: LOGS_KEY });
@@ -59,7 +59,7 @@ export function LogsScreen() {
               </div>
               <div className="flex shrink-0 gap-2">
                 <a
-                  href={`/api/logs/${log.name}/download`}
+                  href={`/api/logs/${encodeURIComponent(log.name)}/download`}
                   download
                   aria-label={`Download ${log.name}`}
                   className="btn-secondary inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-medium transition-all"

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,29 +16,50 @@ import { useCreateServer } from "@/hooks/useServers";
 export function AddServerDialog() {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [port, setPort] = useState(2302);
+  // Empty = let the backend pick a port no other server uses
+  const [port, setPort] = useState("");
   const [password, setPassword] = useState("");
+  // isPending only updates on the next render, so a fast double click would
+  // otherwise send two POSTs
+  const submitting = useRef(false);
 
   const { mutate: createServer, isPending } = useCreateServer();
 
+  const portNumber = port.trim() === "" ? undefined : Number(port);
+  const portValid =
+    portNumber === undefined || (Number.isInteger(portNumber) && portNumber >= 1 && portNumber <= 65531);
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) {
+      // Cancel or close starts the next dialog empty
+      setTitle("");
+      setPort("");
+      setPassword("");
+    }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || !portValid || submitting.current) return;
+    submitting.current = true;
     createServer(
-      { title: title.trim(), port, password: password || null },
       {
-        onSuccess: () => {
-          setOpen(false);
-          setTitle("");
-          setPort(2302);
-          setPassword("");
+        title: title.trim(),
+        ...(portNumber === undefined ? {} : { port: portNumber }),
+        password: password || null,
+      },
+      {
+        onSuccess: () => handleOpenChange(false),
+        onSettled: () => {
+          submitting.current = false;
         },
       },
     );
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={<Button size="sm" />}>
         <Plus className="mr-1.5 h-3.5 w-3.5" />
         Add Server
@@ -73,10 +94,15 @@ export function AddServerDialog() {
               aria-label="Port"
               type="number"
               min={1}
-              max={65535}
+              max={65531}
+              placeholder="Automatic (first free, from 2302)"
               value={port}
-              onChange={(e) => setPort(Number(e.target.value) || 2302)}
+              onChange={(e) => setPort(e.target.value)}
+              aria-invalid={!portValid}
             />
+            {!portValid && (
+              <p className="text-xs text-danger">Port must be a whole number from 1 to 65531</p>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -97,7 +123,7 @@ export function AddServerDialog() {
             <DialogClose render={<Button type="button" variant="outline" />}>
               Cancel
             </DialogClose>
-            <Button type="submit" disabled={!title.trim() || isPending}>
+            <Button type="submit" disabled={!title.trim() || !portValid || isPending}>
               {isPending ? "Creating…" : "Create"}
             </Button>
           </DialogFooter>

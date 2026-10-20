@@ -12,7 +12,9 @@ import { api } from "@/lib/api";
 import type { Mission } from "@/types/api";
 import type { ReactNode } from "react";
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", async (importOriginal) => ({
+  // Real ApiError and errorMessage; only the requests are mocked
+  ...(await importOriginal<typeof import("@/lib/api")>()),
   api: {
     get: vi.fn(),
     post: vi.fn(),
@@ -111,6 +113,17 @@ describe("useDeleteMission", () => {
 
     expect(api.del).toHaveBeenCalledWith("/missions/co_10_escape.altis.pbo");
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["missions"] });
+  });
+
+  it("encodes # and ? so the whole name reaches the backend", async () => {
+    vi.mocked(api.del).mockResolvedValueOnce(undefined);
+    const { result } = renderHook(() => useDeleteMission(), { wrapper: createWrapper() });
+
+    await act(async () => {
+      await result.current.mutateAsync("co#1?x.altis.pbo");
+    });
+
+    expect(api.del).toHaveBeenCalledWith("/missions/co%231%3Fx.altis.pbo");
   });
 
   it("calls API and handles error on failure", async () => {

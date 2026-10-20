@@ -10,11 +10,14 @@ import {
   useStartServer,
   useStopServer,
 } from "@/hooks/useServers";
-import { api } from "@/lib/api";
+import { toast } from "sonner";
+import { api, ApiError } from "@/lib/api";
 import type { Server, ServerCreatePayload, ServerUpdatePayload } from "@/types/api";
 import type { ReactNode } from "react";
 
-vi.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", async (importOriginal) => ({
+  // Real ApiError and errorMessage; only the requests are mocked
+  ...(await importOriginal<typeof import("@/lib/api")>()),
   api: {
     get: vi.fn(),
     post: vi.fn(),
@@ -326,6 +329,32 @@ describe("useStartServer", () => {
     });
 
     expect(api.post).toHaveBeenCalledWith("/servers/server-1/start");
+  });
+
+  it("shows the backend's reason when the start fails", async () => {
+    const errorSpy = vi.spyOn(toast, "error");
+    vi.mocked(api.post).mockRejectedValueOnce(
+      new ApiError(500, "Internal Server Error", { detail: "Could not run arma3server: No such file or directory" }),
+    );
+    const { result } = renderHook(() => useStartServer("server-1"), { wrapper: createWrapper() });
+
+    await act(async () => {
+      await result.current.mutateAsync().catch(() => undefined);
+    });
+
+    expect(errorSpy).toHaveBeenCalledWith("Could not run arma3server: No such file or directory");
+  });
+
+  it("warns about mods left out of the launch", async () => {
+    const warnSpy = vi.spyOn(toast, "warning");
+    vi.mocked(api.post).mockResolvedValueOnce({ status: "ok", pid: 7, skipped_mods: ["@Gone"] });
+    const { result } = renderHook(() => useStartServer("server-1"), { wrapper: createWrapper() });
+
+    await act(async () => {
+      await result.current.mutateAsync();
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith("Started without mods that are missing or unusable: @Gone");
   });
 });
 

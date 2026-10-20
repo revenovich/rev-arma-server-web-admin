@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { api, errorMessage } from "@/lib/api";
 import type {
   Server,
   ServerCreatePayload,
@@ -32,8 +32,8 @@ export function useCreateServer() {
       void queryClient.invalidateQueries({ queryKey: SERVERS_KEY });
       toast.success("Server created");
     },
-    onError: () => {
-      toast.error("Failed to create server");
+    onError: (error) => {
+      toast.error(errorMessage(error, "Failed to create server"));
     },
   });
 }
@@ -47,8 +47,8 @@ export function useUpdateServer(id: string) {
       void queryClient.invalidateQueries({ queryKey: [...SERVERS_KEY, id] });
       toast.success("Server updated");
     },
-    onError: () => {
-      toast.error("Failed to update server");
+    onError: (error) => {
+      toast.error(errorMessage(error, "Failed to update server"));
     },
   });
 }
@@ -61,23 +61,38 @@ export function useDeleteServer() {
       void queryClient.invalidateQueries({ queryKey: SERVERS_KEY });
       toast.success("Server deleted");
     },
-    onError: () => {
-      toast.error("Failed to delete server");
+    onError: (error) => {
+      toast.error(errorMessage(error, "Failed to delete server"));
     },
   });
 }
 
+interface StartResult {
+  status: "ok" | "already_running";
+  pid: number | null;
+  /** Mods left out of `-mod=`: missing on disk, or with a `;` in the name */
+  skipped_mods?: string[];
+}
+
 export function useStartServer(id: string) {
   const queryClient = useQueryClient();
-  return useMutation<{ status: string; pid: number | null }, Error, void>({
-    mutationFn: () => api.post(`/servers/${id}/start`),
-    onSuccess: () => {
+  return useMutation<StartResult, Error, void>({
+    mutationFn: () => api.post<StartResult>(`/servers/${id}/start`),
+    onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: SERVERS_KEY });
       void queryClient.invalidateQueries({ queryKey: [...SERVERS_KEY, id] });
+      if (result.status === "already_running") {
+        toast.info("Server is already running");
+        return;
+      }
       toast.success("Server starting");
+      const skipped = result.skipped_mods ?? [];
+      if (skipped.length > 0) {
+        toast.warning(`Started without mods that are missing or unusable: ${skipped.join(", ")}`);
+      }
     },
-    onError: () => {
-      toast.error("Failed to start server");
+    onError: (error) => {
+      toast.error(errorMessage(error, "Failed to start server"));
     },
   });
 }
@@ -91,8 +106,8 @@ export function useStopServer(id: string) {
       void queryClient.invalidateQueries({ queryKey: [...SERVERS_KEY, id] });
       toast.success("Server stopping");
     },
-    onError: () => {
-      toast.error("Failed to stop server");
+    onError: (error) => {
+      toast.error(errorMessage(error, "Failed to stop server"));
     },
   });
 }

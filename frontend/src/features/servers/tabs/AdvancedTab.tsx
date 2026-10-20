@@ -5,14 +5,17 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import { useServer, useUpdateServer } from "@/hooks/useServers";
+import { parseWholeNumber } from "@/lib/numbers";
 
 interface AdvancedForm {
   parameters: string[];
   additionalConfigurationOptions: string;
   motd: string;
-  motdInterval: number;
-  number_of_headless_clients: number;
+  // Raw text while typing (see parseWholeNumber)
+  motdInterval: string;
+  number_of_headless_clients: string;
 }
 
 export function AdvancedTab() {
@@ -24,8 +27,8 @@ export function AdvancedTab() {
     parameters: [],
     additionalConfigurationOptions: "",
     motd: "",
-    motdInterval: 5,
-    number_of_headless_clients: 0,
+    motdInterval: "5",
+    number_of_headless_clients: "0",
   });
   const [initialized, setInitialized] = useState(false);
   const [paramInput, setParamInput] = useState("");
@@ -36,8 +39,8 @@ export function AdvancedTab() {
       parameters: server.parameters ?? [],
       additionalConfigurationOptions: server.additionalConfigurationOptions ?? "",
       motd: server.motd ?? "",
-      motdInterval: 5,
-      number_of_headless_clients: server.number_of_headless_clients ?? 0,
+      motdInterval: "5",
+      number_of_headless_clients: String(server.number_of_headless_clients ?? 0),
     });
     setInitialized(true);
   }
@@ -66,11 +69,16 @@ export function AdvancedTab() {
 
   async function handleSave() {
     if (!server) return;
+    const headless = parseWholeNumber(form.number_of_headless_clients);
+    if (headless === null || headless < 0) {
+      toast.error("Number of headless clients must be a whole number, 0 or more");
+      return;
+    }
     await updateServer.mutateAsync({
       parameters: form.parameters,
       additionalConfigurationOptions: form.additionalConfigurationOptions || null,
       motd: form.motd || null,
-      number_of_headless_clients: form.number_of_headless_clients,
+      number_of_headless_clients: headless,
     });
   }
 
@@ -154,7 +162,7 @@ export function AdvancedTab() {
             min={0}
             value={form.motdInterval}
             onChange={(e) =>
-              setForm((prev) => ({ ...prev, motdInterval: parseInt(e.target.value) || 0 }))
+              setForm((prev) => ({ ...prev, motdInterval: e.target.value }))
             }
           />
         </div>
@@ -174,7 +182,7 @@ export function AdvancedTab() {
             max={16}
             value={form.number_of_headless_clients}
             onChange={(e) =>
-              setForm((prev) => ({ ...prev, number_of_headless_clients: parseInt(e.target.value) || 0 }))
+              setForm((prev) => ({ ...prev, number_of_headless_clients: e.target.value }))
             }
           />
         </div>

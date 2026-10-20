@@ -361,8 +361,9 @@ describe("ServerDetailScreen", () => {
     expect(callArgs.id).toBeUndefined();
     expect(callArgs.pid).toBeUndefined();
     expect(callArgs.state).toBeUndefined();
+    // Port is left out so the backend picks a free one (a copy on the same port can't run)
+    expect(callArgs.port).toBeUndefined();
     // Verify other fields are preserved
-    expect(callArgs.port).toBe(2302);
     expect(callArgs.max_players).toBe(32);
   });
 
@@ -624,7 +625,7 @@ describe("ServerDetailScreen", () => {
     expect(callArgs.id).toBeUndefined();
     expect(callArgs.pid).toBeUndefined();
     expect(callArgs.state).toBeUndefined();
-    expect(callArgs.port).toBe(2302);
+    expect(callArgs.port).toBeUndefined();
   });
 
   // ── Clone with online server ──────────────────────────────────────────────

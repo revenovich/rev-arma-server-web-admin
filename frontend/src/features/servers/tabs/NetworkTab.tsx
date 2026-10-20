@@ -5,7 +5,9 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import { useServer, useUpdateServer } from "@/hooks/useServers";
+import { parseWholeNumber } from "@/lib/numbers";
 import type { ServerUpdatePayload } from "@/types/api";
 
 const BANDWIDTH_PRESETS: Record<string, Record<string, number>> = {
@@ -15,23 +17,23 @@ const BANDWIDTH_PRESETS: Record<string, Record<string, number>> = {
   Unlimited: { MinBandwidth: 0, MaxBandwidth: 0, MaxMsgSend: 4096, MaxSizeGuaranteed: 4096, MaxSizeNonguaranteed: 4096, MinPacketSize: 44, MaxPacketSize: 1400 },
 };
 
-interface NetworkForm {
-  MaxMsgSend: number;
-  MaxSizeGuaranteed: number;
-  MaxSizeNonguaranteed: number;
-  MinBandwidth: number;
-  MaxBandwidth: number;
-  MinPacketSize: number;
-  MaxPacketSize: number;
-  MaxPing: number;
-  MaxPacketLoss: number;
-  MaxDesync: number;
-  DisconnectTimeout: number;
-  loopback: boolean;
-  upnp: boolean;
-}
+type NumberKey =
+  | "MaxMsgSend"
+  | "MaxSizeGuaranteed"
+  | "MaxSizeNonguaranteed"
+  | "MinBandwidth"
+  | "MaxBandwidth"
+  | "MinPacketSize"
+  | "MaxPacketSize"
+  | "MaxPing"
+  | "MaxPacketLoss"
+  | "MaxDesync"
+  | "DisconnectTimeout";
 
-const DEFAULTS: NetworkForm = {
+// Number fields hold the raw text so "-1" can be typed; parsed on save
+type NetworkForm = Record<NumberKey, string> & { loopback: boolean; upnp: boolean };
+
+const NUMBER_DEFAULTS: Record<NumberKey, number> = {
   MaxMsgSend: 128,
   MaxSizeGuaranteed: 512,
   MaxSizeNonguaranteed: 256,
@@ -43,9 +45,20 @@ const DEFAULTS: NetworkForm = {
   MaxPacketLoss: -1,
   MaxDesync: -1,
   DisconnectTimeout: 15,
-  loopback: false,
-  upnp: false,
 };
+
+const NUMBER_KEYS = Object.keys(NUMBER_DEFAULTS) as NumberKey[];
+
+function toForm(values: Partial<Record<NumberKey, unknown>>, loopback: boolean, upnp: boolean): NetworkForm {
+  const form = { loopback, upnp } as NetworkForm;
+  for (const key of NUMBER_KEYS) {
+    const value = values[key];
+    form[key] = String(typeof value === "number" ? value : NUMBER_DEFAULTS[key]);
+  }
+  return form;
+}
+
+const DEFAULTS: NetworkForm = toForm({}, false, false);
 
 export function NetworkTab() {
   const { id } = useParams<{ id: string }>();
@@ -57,38 +70,37 @@ export function NetworkTab() {
 
   if (server && !initialized) {
     const s = server as unknown as Record<string, unknown>;
-    setForm({
-      MaxMsgSend: (s.MaxMsgSend as number) ?? DEFAULTS.MaxMsgSend,
-      MaxSizeGuaranteed: (s.MaxSizeGuaranteed as number) ?? DEFAULTS.MaxSizeGuaranteed,
-      MaxSizeNonguaranteed: (s.MaxSizeNonguaranteed as number) ?? DEFAULTS.MaxSizeNonguaranteed,
-      MinBandwidth: (s.MinBandwidth as number) ?? DEFAULTS.MinBandwidth,
-      MaxBandwidth: (s.MaxBandwidth as number) ?? DEFAULTS.MaxBandwidth,
-      MinPacketSize: (s.MinPacketSize as number) ?? DEFAULTS.MinPacketSize,
-      MaxPacketSize: (s.MaxPacketSize as number) ?? DEFAULTS.MaxPacketSize,
-      MaxPing: (s.MaxPing as number) ?? DEFAULTS.MaxPing,
-      MaxPacketLoss: (s.MaxPacketLoss as number) ?? DEFAULTS.MaxPacketLoss,
-      MaxDesync: (s.MaxDesync as number) ?? DEFAULTS.MaxDesync,
-      DisconnectTimeout: (s.DisconnectTimeout as number) ?? DEFAULTS.DisconnectTimeout,
-      loopback: Boolean(s.loopback),
-      upnp: Boolean(s.upnp),
-    });
+    setForm(toForm(s as Partial<Record<NumberKey, unknown>>, Boolean(s.loopback), Boolean(s.upnp)));
     setInitialized(true);
   }
 
   function applyPreset(preset: string) {
     const values = BANDWIDTH_PRESETS[preset];
     if (values) {
-      setForm((prev) => ({ ...prev, ...values }));
+      setForm((prev) => {
+        const next = { ...prev };
+        for (const [key, value] of Object.entries(values)) next[key as NumberKey] = String(value);
+        return next;
+      });
     }
   }
 
-  function updateField(key: keyof NetworkForm, value: number) {
+  function updateField(key: NumberKey, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
   async function handleSave() {
     if (!server) return;
-    await updateServer.mutateAsync(form as unknown as ServerUpdatePayload);
+    const payload: Record<string, number | boolean> = { loopback: form.loopback, upnp: form.upnp };
+    for (const key of NUMBER_KEYS) {
+      const value = parseWholeNumber(form[key]);
+      if (value === null) {
+        toast.error(`${key} must be a whole number`);
+        return;
+      }
+      payload[key] = value;
+    }
+    await updateServer.mutateAsync(payload as ServerUpdatePayload);
   }
 
   if (isLoading) {
@@ -101,7 +113,7 @@ export function NetworkTab() {
     );
   }
 
-  const numberFields: { key: keyof NetworkForm; label: string }[] = [
+  const numberFields: { key: NumberKey; label: string }[] = [
     { key: "MaxMsgSend", label: "Max Messages Sent" },
     { key: "MaxSizeGuaranteed", label: "Max Size Guaranteed (B)" },
     { key: "MaxSizeNonguaranteed", label: "Max Size Nonguaranteed (B)" },
@@ -111,7 +123,7 @@ export function NetworkTab() {
     { key: "MaxPacketSize", label: "Max Packet Size (B)" },
   ];
 
-  const networkQualityFields: { key: keyof NetworkForm; label: string }[] = [
+  const networkQualityFields: { key: NumberKey; label: string }[] = [
     { key: "MaxPing", label: "Max Ping Kick (-1 = disabled)" },
     { key: "MaxPacketLoss", label: "Max Packet Loss Kick % (-1 = disabled)" },
     { key: "MaxDesync", label: "Max Desync Kick (-1 = disabled)" },
@@ -139,7 +151,7 @@ export function NetworkTab() {
           {numberFields.map(({ key, label }) => (
             <div key={key} className="space-y-1.5">
               <label htmlFor={key} className="text-xs text-muted-foreground">{label}</label>
-              <Input id={key} type="number" value={form[key] as number} onChange={(e) => updateField(key, parseInt(e.target.value) || 0)} />
+              <Input id={key} type="number" step={1} value={form[key]} onChange={(e) => updateField(key, e.target.value)} />
             </div>
           ))}
         </div>
@@ -152,7 +164,7 @@ export function NetworkTab() {
           {networkQualityFields.map(({ key, label }) => (
             <div key={key} className="space-y-1.5">
               <label htmlFor={key} className="text-xs text-muted-foreground">{label}</label>
-              <Input id={key} type="number" value={form[key] as number} onChange={(e) => updateField(key, parseInt(e.target.value) || 0)} />
+              <Input id={key} type="number" step={1} value={form[key]} onChange={(e) => updateField(key, e.target.value)} />
             </div>
           ))}
         </div>

@@ -80,13 +80,13 @@ def test_upload_mission_valid_pbo(client: TestClient, tmp_path: Path) -> None:
     assert "test.altis.pbo" in data["uploaded"]
 
 
-def test_upload_mission_skips_non_pbo(client: TestClient) -> None:
+def test_upload_mission_rejects_non_pbo(client: TestClient) -> None:
     resp = client.post(
         "/api/missions/",
         files=[("files", ("notes.txt", io.BytesIO(b"text"), "text/plain"))],
     )
-    assert resp.status_code == 201
-    assert resp.json()["uploaded"] == []
+    assert resp.status_code == 400
+    assert "Only .pbo files" in resp.json()["detail"]
 
 
 def test_upload_mission_too_many_files(client: TestClient) -> None:
