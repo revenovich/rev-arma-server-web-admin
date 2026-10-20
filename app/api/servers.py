@@ -52,7 +52,9 @@ async def update_server(
     body: dict[str, Any],
     manager: Annotated[Manager, Depends(_get_manager)],
 ) -> dict[str, Any]:
-    if not body.get("title"):
+    # A body without `title` is a partial update: the tabs other than General
+    # send only their own fields. Only an explicit empty title is rejected.
+    if "title" in body and not body["title"]:
         raise HTTPException(status_code=400, detail="Server title cannot be empty")
     server = manager.update(server_id, body)
     if server is None:

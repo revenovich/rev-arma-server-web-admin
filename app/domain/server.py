@@ -185,8 +185,12 @@ class Server:
         self._process.terminate()
         try:
             await asyncio.wait_for(self._process.wait(), timeout=5.0)
-        except TimeoutError:
-            self._process.kill()
+        # Before Python 3.11 asyncio.TimeoutError is not the builtin TimeoutError
+        except (TimeoutError, asyncio.TimeoutError):
+            try:
+                self._process.kill()
+            except ProcessLookupError:
+                pass
 
         await self._stop_hc()
 

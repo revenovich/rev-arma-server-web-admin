@@ -2,7 +2,7 @@
 
 Audit of `master` @ `6485de8` (2026-10-16). Every item below was traced in code; items marked **✔ reproduced** were also confirmed by running the code (TestClient probe, test suite, linters). Line numbers are as of that commit.
 
-_Update: the CI failures in §3 have since been fixed. CI's checks now pass on Linux. The path-traversal holes S0, S1, S6 and S7 and the P12 rename failure are also fixed (marked **✅ Fixed** in place). Everything else is as audited._
+_Update: the CI failures in §3 have since been fixed. CI's checks now pass on Linux. The path-traversal holes S0, S1, S6 and S7, the P12 rename failure, and P1, P6 and P22 are also fixed (marked **✅ Fixed** in place). Everything else is as audited._
 
 ## TL;DR
 
@@ -12,9 +12,9 @@ The rewrite has a sound architecture and good unit-test coverage, but **several 
 2. **Servers can't be run reliably:**
    - stdout is piped but never read, so the server blocks once the pipe fills (P5).
    - The A2S status query targets the wrong port, so servers show offline, headless clients never start, and the UI never offers **Stop** (P4, P13).
-   - `stop()` crashes on Python 3.9 (P6).
+   - ~~`stop()` crashes on Python 3.9 (P6).~~ ✅ Fixed.
 3. **Editing doesn't work:**
-   - Six of the seven server-detail tabs can't save (P1).
+   - ~~Six of the seven server-detail tabs can't save (P1).~~ ✅ Fixed.
    - Most of the fields they edit never reach `server.cfg`, `basic.cfg` or the profile (P2).
    - Mission rotation writes `.pbo` into `template` (P14).
 4. **Data loss:**
@@ -30,8 +30,10 @@ Unit tests mock both sides of each contract (frontend tests mock `api`, E2E mock
 
 ## 1. Current problems (broken behaviour)
 
-### P1 — Server-detail tabs can't save (✔ reproduced)
-`PUT /api/servers/{id}` returns **400 "Server title cannot be empty"** unless the body includes `title` (`app/api/servers.py:55`). Only `GeneralTab` sends `title`. `MissionsTab`, `ModsTab`, `DifficultyTab`, `NetworkTab`, `SecurityTab` and `AdvancedTab` all send partial payloads, so each save shows "Failed to update server" and nothing is persisted.
+### P1 — Server-detail tabs can't save (✅ Fixed)
+✅ **Fixed:** `PUT /api/servers/{id}` is now a merge. A body without `title` updates only the fields it carries; an explicit empty or `null` title still returns 400. Tests: `test_update_server_partial_body_*` in `tests/backend/integration/test_api_servers_extra.py`. *Still open:* partial updates bypass validation like any other update (P9), and most of the saved fields still don't reach a config file (P2).
+
+Original finding: `PUT /api/servers/{id}` returns **400 "Server title cannot be empty"** unless the body includes `title` (`app/api/servers.py:55`). Only `GeneralTab` sends `title`. `MissionsTab`, `ModsTab`, `DifficultyTab`, `NetworkTab`, `SecurityTab` and `AdvancedTab` all send partial payloads, so each save shows "Failed to update server" and nothing is persisted.
 *Fix:* treat `PUT` as a merge (drop the title check when `title` is absent) or add `PATCH`; add an integration test that does a partial update.
 
 ### P2 — Most tab fields never reach an Arma config file
@@ -52,8 +54,10 @@ Every backend publisher sends `{"type": "servers", "payload": null}` as a "chang
 `Server.start()` uses `stdout=PIPE, stderr=STDOUT` (`server.py:157`), but nothing reads it. Once the OS pipe buffer fills (about 64 KB on Linux), the server process blocks on write. Arma on Linux logs to stdout, so this is likely within minutes of a busy session. A related gap: the old Node app wrote this stream to `<path>/logs/*.rpt` and pruned it to 20 files. Here `cleanup_old_logs()` is never called, so **the Logs screen is empty on Linux**.
 *Fix:* drain stdout in a task, write it to a rotating `.rpt` in `logs_dir`, optionally fan it out over the bus (that also gives you a live console, see §5).
 
-### P6 — `stop()` raises instead of killing on Python 3.9/3.10
-`server.py:188` catches only builtin `TimeoutError`. Before 3.11, `asyncio.wait_for` raises `asyncio.TimeoutError`, so a server that ignores SIGTERM for 5 s causes a 500 and is never killed. Headless clients are also left running. This is the same class of bug that was already fixed in `ws.py`.
+### P6 — `stop()` raises instead of killing on Python 3.9/3.10 (✅ Fixed)
+✅ **Fixed:** `Server.stop()` catches `(TimeoutError, asyncio.TimeoutError)`, kills the process (ignoring `ProcessLookupError` if it exited meanwhile), then stops headless clients. Test: `test_stop_kills_process_that_ignores_terminate`, which fails on 3.9 without the fix.
+
+Original finding: `server.py:188` catches only builtin `TimeoutError`. Before 3.11, `asyncio.wait_for` raises `asyncio.TimeoutError`, so a server that ignores SIGTERM for 5 s causes a 500 and is never killed. Headless clients are also left running. This is the same class of bug that was already fixed in `ws.py`.
 
 ### P7 — Duplicate titles silently overwrite servers (✔ reproduced)
 `id = slugify(title)` and `Manager.add` doesn't check for collisions (`manager.py:30`). Creating a second "My Server", or pressing **Clone** twice ("Copy of X" both times), replaces the first entry in memory and in `servers.json`. Renaming one server to another's title in `Manager.update` has the same effect.
@@ -126,8 +130,10 @@ Original finding: `upload_missions` writes to the system temp dir, then `Path.re
 - `config.serverMods` is prepended to `-mod=` (`server.py:126-129`) instead of being passed as `-serverMod=`, so "server-only" mods are required of every client.
 - SteamCMD branch switching does nothing: `+app_update_beta <branch>` is not a SteamCMD command (`services/steamcmd.py:38`). The correct form is `+app_update <id> -beta <branch> validate`. `/steamcmd/branch` is identical to `/update`, and the request body's `path` silently overrides the install directory.
 
-### P22 — `python -m app.main` always runs with `reload=True`
-`main.py:130`. In production, any `.py` change or `git pull` restarts the worker, and the lifespan shutdown **stops every running Arma server**. On Windows, uvicorn's reload mode uses a `SelectorEventLoop` regardless of the policy set at `main.py:15`, so server start fails with `NotImplementedError` in that mode.
+### P22 — `python -m app.main` always runs with `reload=True` (✅ Fixed)
+✅ **Fixed:** `python -m app.main` now calls `app.main.run()`, which starts uvicorn without reload and passes the app object (so the module isn't imported and the app built twice). For development use `uvicorn app.main:app --reload` explicitly. Test: `tests/backend/unit/test_main_entrypoint.py`.
+
+Original finding: `main.py:130`. In production, any `.py` change or `git pull` restarts the worker, and the lifespan shutdown **stops every running Arma server**. On Windows, uvicorn's reload mode uses a `SelectorEventLoop` regardless of the policy set at `main.py:15`, so server start fails with `NotImplementedError` in that mode.
 
 ### P23 — `PUT /api/servers/{id}/config` renames without re-keying (500)
 `update_server_config` (`servers.py:118`) calls `server.update(body)` directly, bypassing `Manager.update`. If `title` changes, the manager's dict key stays old: `GET /<new-id>` returns 404, and a later `PUT /<old-id>` crashes with a `KeyError` at `manager.py:48`.
@@ -218,7 +224,7 @@ Other test-suite observations:
 
 ### Platform and dependency upgrades
 
-- **Python 3.9 has been EOL since Oct 2025.** Raise the floor to 3.11+. Python 3.12/3.13 support Windows Server 2016, and the README already recommends 3.12. This removes the `asyncio.TimeoutError` trap (P6, `ws.py`), lets you drop `eval-type-backport`, and fixes the mypy `python_version` error.
+- **Python 3.9 has been EOL since Oct 2025.** Raise the floor to 3.11+. Python 3.12/3.13 support Windows Server 2016, and the README already recommends 3.12. This removes the `asyncio.TimeoutError` trap (`server.py`, `ws.py`), lets you drop `eval-type-backport`, and fixes the mypy `python_version` error.
 - **Pin upper bounds** in `pyproject.toml` (everything is `>=` today) and commit a lockfile (`uv.lock`). FastAPI 0.143 / Starlette 1.8 are already in use, and the TestClient-over-httpx deprecation will turn into a break.
 - **Use `response_model`s** on routes (they currently return `dict[str, Any]`), so `/api/openapi.json` is meaningful and `npm run gen:types` can replace the hand-maintained `src/types/api.ts` (fix the script URL first).
 - **Frontend:**
@@ -234,7 +240,7 @@ Other test-suite observations:
 
 1. **Close the destructive holes now**: ~~S0 (`update-mods` and the other preset path joins), S1 (upload filename), S7 (Caddy listing names)~~ ✅ fixed. S2 (fail-open auth / CWD-relative config) is still open. Until it's fixed, don't expose the panel beyond localhost or a VPN.
 2. ~~**Make CI green**: ruff `N815` ignore plus autofix, fix or delete `list_mod_updates`, and the two ESLint errors.~~ **Done** (§3); `list_mod_updates` was fixed, not deleted.
-3. **Make the core loop work**: P5 (drain stdout), P4 (query port), P13 (Stop button), P6 (TimeoutError), P1 (partial PUT), P3 (WS payload), P22 (no reload in prod). Add one integration test per fix that exercises the *real* contract.
+3. **Make the core loop work**: P5 (drain stdout), P4 (query port), P13 (Stop button), ~~P6 (TimeoutError), P1 (partial PUT)~~ ✅, P3 (WS payload), ~~P22 (no reload in prod)~~ ✅. Add one integration test per fix that exercises the *real* contract.
 4. **Stop data loss and corruption**: P19 (`servers.json` load/save), P7 and P23 (id collisions and re-keying), P8 (stale form across servers, rename navigation), P9 (validation), P10 (cfg escaping), P14 (`template`).
 5. **Wire config coverage (P2, P21)** with a config-preview endpoint and golden tests, then fix or hide the dead UI (P15, P16, P18, P20).
 6. **Then features and upgrades (§5)**: Python floor, dependency cleanup, console/log streaming, player list, RCon.

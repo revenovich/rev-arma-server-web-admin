@@ -130,13 +130,19 @@ def _mount_frontend(app: FastAPI) -> None:
 app = create_app()
 
 
-if __name__ == "__main__":
+def run() -> None:
+    """Entry point for `python -m app.main`.
+
+    Never uses uvicorn's reload mode: a reload runs the lifespan shutdown,
+    which stops every running Arma server, and on Windows reload mode ignores
+    the Proactor event loop policy that subprocesses need. Use
+    `uvicorn app.main:app --reload` explicitly for development.
+    """
     import uvicorn
 
     _settings = load_settings()
-    uvicorn.run(
-        "app.main:app",
-        host=_settings.host,
-        port=_settings.port,
-        reload=True,
-    )
+    uvicorn.run(app, host=_settings.host, port=_settings.port)
+
+
+if __name__ == "__main__":
+    run()
