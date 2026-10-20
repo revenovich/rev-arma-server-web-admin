@@ -319,6 +319,16 @@ describe("ServerDetailScreen", () => {
     expect(screen.getByLabelText("Online")).toBeInTheDocument();
   });
 
+  // ── Process running but A2S not answering yet (PROJECT_HEALTH P13) ──────
+
+  it("renders Stop and an offline dot when the process runs but A2S has not answered", () => {
+    setupServerMock({ server: { ...ONLINE_SERVER, pid: 4321, state: null } });
+    renderDetail("/servers/online-server/general");
+    expect(screen.getByRole("button", { name: /stop server/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /start server/i })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Offline")).toBeInTheDocument();
+  });
+
   it("calls stopServer mutation when Stop is clicked", async () => {
     const user = userEvent.setup();
     setupServerMock({ server: ONLINE_SERVER });
