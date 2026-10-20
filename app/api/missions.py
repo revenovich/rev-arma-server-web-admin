@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import tempfile
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
@@ -38,14 +38,24 @@ async def upload_missions(
     if len(files) > 64:
         raise HTTPException(status_code=400, detail="Maximum 64 files per upload")
 
-    uploaded: list[str] = []
+    # Check every file before storing any, so a bad one doesn't leave half an upload
+    contents: list[tuple[str, bytes]] = []
     for upload in files:
         filename = upload.filename or "mission.pbo"
-        if not filename.lower().endswith(".pbo"):
-            continue
+        base = PureWindowsPath(filename).name
+        if not base.lower().endswith(".pbo"):
+            raise HTTPException(status_code=400, detail=f"Only .pbo files can be uploaded ('{filename}')")
+        if base.lower() == ".pbo":
+            raise HTTPException(status_code=400, detail=f"'{filename}' has no mission name")
         content = await upload.read()
+        if not content:
+            raise HTTPException(status_code=400, detail=f"'{filename}' is empty")
         if len(content) > _MAX_FILE_SIZE:
             raise HTTPException(status_code=413, detail=f"File '{filename}' exceeds 512 MB limit")
+        contents.append((filename, content))
+
+    uploaded: list[str] = []
+    for filename, content in contents:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pbo") as tmp:
             tmp.write(content)
             tmp_path = Path(tmp.name)
@@ -75,7 +85,8 @@ async def delete_mission(
     request: Request,
     settings: Annotated[Settings, Depends(_get_settings)],
 ) -> dict[str, Any]:
-    await missions_domain.delete_mission(filename, settings)
+    if not await missions_domain.delete_mission(filename, settings):
+        raise HTTPException(status_code=404, detail="Mission not found")
     await request.app.state.bus.publish("missions", None)
     return {"deleted": filename}
 

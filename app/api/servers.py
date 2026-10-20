@@ -5,13 +5,19 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.api import require_auth
-from app.domain.manager import Manager
+from app.domain.manager import InvalidServerError, Manager, ServerConflictError
 
 router = APIRouter(prefix="/api/servers", dependencies=[Depends(require_auth)])
 
 
 def _get_manager(request: Request) -> Manager:
     return request.app.state.manager
+
+
+def _http_error(exc: ValueError) -> HTTPException:
+    if isinstance(exc, ServerConflictError):
+        return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
 
 
 def _get_server_or_404(server_id: str, manager: Manager) -> Any:
@@ -33,7 +39,10 @@ async def create_server(
 ) -> dict[str, Any]:
     if not body.get("title"):
         raise HTTPException(status_code=400, detail="Server title cannot be empty")
-    server = manager.add(body)
+    try:
+        server = manager.add(body)
+    except (InvalidServerError, ServerConflictError) as exc:
+        raise _http_error(exc) from exc
     await manager.bus.publish("servers", None)
     return server.to_json()
 
@@ -56,7 +65,10 @@ async def update_server(
     # send only their own fields. Only an explicit empty title is rejected.
     if "title" in body and not body["title"]:
         raise HTTPException(status_code=400, detail="Server title cannot be empty")
-    server = manager.update(server_id, body)
+    try:
+        server = manager.update(server_id, body)
+    except (InvalidServerError, ServerConflictError) as exc:
+        raise _http_error(exc) from exc
     if server is None:
         raise HTTPException(status_code=404, detail="Server not found")
     await manager.bus.publish("servers", None)
@@ -84,7 +96,11 @@ async def start_server(
     if server.pid is not None:
         return {"status": "already_running", "pid": server.pid}
     await server.start()
-    return {"status": "ok", "pid": server.pid}
+    if server.pid is None:
+        raise HTTPException(
+            status_code=500, detail=server.last_error or "The server process did not start"
+        )
+    return {"status": "ok", "pid": server.pid, "skipped_mods": server.skipped_mods}
 
 
 @router.post("/{server_id}/stop")
@@ -116,9 +132,12 @@ async def update_server_config(
     body: dict[str, Any],
     manager: Annotated[Manager, Depends(_get_manager)],
 ) -> dict[str, Any]:
-    server = _get_server_or_404(server_id, manager)
-    server.update(body)
-    manager.save()
+    _get_server_or_404(server_id, manager)
+    try:
+        server = manager.update(server_id, body)
+    except (InvalidServerError, ServerConflictError) as exc:
+        raise _http_error(exc) from exc
+    assert server is not None
     if server.pid is not None:
         server._write_configs()
     await manager.bus.publish("servers", None)

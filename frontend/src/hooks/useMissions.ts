@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { api, errorMessage } from "@/lib/api";
 import type { Mission } from "@/types/api";
 
 const MISSIONS_KEY = ["missions"] as const;
@@ -15,13 +15,14 @@ export function useMissions() {
 export function useDeleteMission() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, string>({
-    mutationFn: (name) => api.del(`/missions/${name}`),
+    // Names may contain # or ?, which would otherwise end the path
+    mutationFn: (name) => api.del(`/missions/${encodeURIComponent(name)}`),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: MISSIONS_KEY });
       toast.success("Mission deleted");
     },
-    onError: () => {
-      toast.error("Failed to delete mission");
+    onError: (error) => {
+      toast.error(errorMessage(error, "Failed to delete mission"));
     },
   });
 }
@@ -70,8 +71,8 @@ export function useUploadMissions() {
       void queryClient.invalidateQueries({ queryKey: MISSIONS_KEY });
       toast.success(`${data.uploaded.length} mission${data.uploaded.length === 1 ? "" : "s"} uploaded`);
     },
-    onError: () => {
-      toast.error("Failed to upload missions");
+    onError: (error) => {
+      toast.error(errorMessage(error, "Failed to upload missions"));
     },
   });
 }

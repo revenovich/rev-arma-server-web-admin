@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Play, Square, Users, Copy, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusDot } from "@/components/servers/StatusDot";
 import { useStartServer, useStopServer, useCreateServer } from "@/hooks/useServers";
+import { clonePayload } from "@/lib/clone";
 import type { Server } from "@/types/api";
 
 interface ServerCardProps {
@@ -22,6 +24,7 @@ export function ServerCard({ server }: ServerCardProps) {
   const { mutate: startServer, isPending: isStarting } = useStartServer(server.id);
   const { mutate: stopServer, isPending: isStopping } = useStopServer(server.id);
   const { mutate: createServer, isPending: isCloning } = useCreateServer();
+  const queryClient = useQueryClient();
 
   function handleStart(e: React.MouseEvent) {
     e.preventDefault();
@@ -38,9 +41,7 @@ export function ServerCard({ server }: ServerCardProps) {
   function handleClone(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { id, pid, state, ...rest } = server;
-    createServer({ ...rest, title: `Copy of ${server.title}` });
+    createServer(clonePayload(server, queryClient.getQueryData<Server[]>(["servers"])));
   }
 
   return (

@@ -17,6 +17,9 @@ from app.schemas.server import ServerSchema
 
 @pytest.fixture()
 def settings(tmp_path):
+    # Mods are only passed to -mod when their folder exists (P36)
+    for mod in ("@ACE", "@ACRE", "@cba"):
+        (tmp_path / mod).mkdir()
     return Settings(game="arma3", path=str(tmp_path), type="linux")
 
 
@@ -233,16 +236,24 @@ class TestServerBuildArgs:
         assert "-noPause" in args
         assert "-noSound" in args
 
-    def test_server_mods_included_for_non_headless(self, schema, bus):
-        s = Settings(game="arma3", type="linux", path="/tmp")
+    def test_missing_and_semicolon_mods_are_skipped(self, schema, settings, bus, tmp_path):
+        (tmp_path / "@A;B").mkdir()
+        schema.mods = ["@ACE", "@Gone", "@A;B"]
+        server = Server(schema=schema, settings=settings, bus=bus)
+        args = server._build_args()
+        assert "-mod=@ACE" in args
+        assert server.skipped_mods == ["@Gone", "@A;B"]
+
+    def test_server_mods_included_for_non_headless(self, schema, settings, bus):
+        s = settings
         s.server_mods = ["@cba"]
         server = Server(schema=schema, settings=s, bus=bus)
         args = server._build_args()
         mod_arg = next((a for a in args if a.startswith("-mod=")), None)
         assert "@cba" in mod_arg
 
-    def test_server_mods_excluded_for_headless(self, schema, bus):
-        s = Settings(game="arma3", type="linux", path="/tmp")
+    def test_server_mods_excluded_for_headless(self, schema, settings, bus):
+        s = settings
         s.server_mods = ["@cba"]
         server = Server(schema=schema, settings=s, bus=bus)
         args = server._build_args(headless=True)

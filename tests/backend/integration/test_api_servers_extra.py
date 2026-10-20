@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -120,9 +120,29 @@ def test_delete_server_not_found(client_with_server: tuple) -> None:
 def test_start_server_not_running(client_with_server: tuple) -> None:
     c, sid = client_with_server
     # pid is None → attempt to start. Patch start() to avoid spawning a real process.
-    with patch("app.domain.server.Server.start", new_callable=AsyncMock):
+    server = c.app.state.manager.get(sid)
+
+    async def fake_start() -> None:
+        server.pid = 4242
+
+    with patch.object(server, "start", side_effect=fake_start):
         resp = c.post(f"/api/servers/{sid}/start")
     assert resp.status_code == 200
+    assert resp.json() == {"status": "ok", "pid": 4242, "skipped_mods": []}
+    server.pid = None
+
+
+def test_start_that_fails_returns_500_with_reason(client_with_server: tuple) -> None:
+    c, sid = client_with_server
+    server = c.app.state.manager.get(sid)
+
+    async def failing_start() -> None:
+        server.last_error = "Could not run arma3server: Permission denied"
+
+    with patch.object(server, "start", side_effect=failing_start):
+        resp = c.post(f"/api/servers/{sid}/start")
+    assert resp.status_code == 500
+    assert resp.json()["detail"] == "Could not run arma3server: Permission denied"
 
 
 # ---------------------------------------------------------------------------

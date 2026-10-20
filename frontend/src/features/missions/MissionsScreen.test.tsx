@@ -42,7 +42,7 @@ const MOCK_MISSIONS: Mission[] = [
 let mockDeleteIsPending = false;
 let mockRefreshIsPending = false;
 let mockIsDragActive = false;
-let mockOnDrop: ((files: File[]) => void) | null = null;
+let mockOnDrop: ((files: File[], rejections: { file: File }[]) => void) | null = null;
 
 const mockUseMissions = vi.fn();
 const mockDeleteMutate = vi.fn();
@@ -70,7 +70,7 @@ vi.mock("@/hooks/useMissions", () => ({
 }));
 
 vi.mock("react-dropzone", () => ({
-  useDropzone: (opts: { onDrop: (files: File[]) => void }) => {
+  useDropzone: (opts: { onDrop: (files: File[], rejections: { file: File }[]) => void }) => {
     mockOnDrop = opts.onDrop;
     return {
       getRootProps: () => ({ tabIndex: 0 }),
@@ -215,9 +215,29 @@ describe("MissionsScreen", () => {
     // Simulate dropping files by calling it directly.
     const fakeFiles = [new File(["pbo"], "test.pbo", { type: "application/octet-stream" })];
     expect(mockOnDrop).toBeDefined();
-    mockOnDrop!(fakeFiles);
+    mockOnDrop!(fakeFiles, []);
 
     expect(mockUploadMutate).toHaveBeenCalledWith(fakeFiles);
+  });
+
+  it("explains a rejected non-.pbo file instead of uploading nothing", async () => {
+    const { toast } = await import("sonner");
+    const errorSpy = vi.spyOn(toast, "error");
+    renderMissions();
+
+    mockOnDrop!([], [{ file: new File(["x"], "readme.txt") }]);
+
+    expect(mockUploadMutate).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith("Only .pbo files can be uploaded (skipped readme.txt)");
+    errorSpy.mockRestore();
+  });
+
+  it("links downloads with the mission name encoded", () => {
+    renderMissions({ missions: [{ ...MOCK_MISSIONS[0], name: "co#1?x.altis.pbo" }] });
+    expect(screen.getByRole("link", { name: /download co#1\?x/i })).toHaveAttribute(
+      "href",
+      "/api/missions/co%231%3Fx.altis.pbo",
+    );
   });
 
   // -- Loading state --

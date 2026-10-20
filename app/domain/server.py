@@ -48,8 +48,17 @@ _BINARIES: dict[str, dict[str, str]] = {
 }
 
 
+# Keeps `<id>.cfg` / `<id>.Arma3Profile` well under the 255-byte file-name limit
+_MAX_ID_LENGTH = 100
+
+
 def _make_id(title: str) -> str:
-    return slugify(title).replace(".", "-")
+    return slugify(title, max_length=_MAX_ID_LENGTH).replace(".", "-")
+
+
+def make_id(title: str) -> str:
+    """Server id for *title* (empty when the title has no letters or digits)."""
+    return _make_id(title)
 
 
 class Server:
@@ -65,6 +74,10 @@ class Server:
         self._process: asyncio.subprocess.Process | None = None
         self._hc_processes: list[asyncio.subprocess.Process] = []
         self._query_task: asyncio.Task[None] | None = None
+        self._stopping = False
+        # Why the last start() failed, and the mods it had to leave out
+        self.last_error: str | None = None
+        self.skipped_mods: list[str] = []
 
     # --- Read-only property proxies ---
     @property
@@ -91,6 +104,11 @@ class Server:
     def update(self, data: dict[str, Any]) -> None:
         self._schema = self._schema.model_copy(update=data)
         self.id = _make_id(self._schema.title)
+
+    def replace_schema(self, schema: ServerSchema) -> None:
+        """Swap in an already-validated record (see Manager.update)."""
+        self._schema = schema
+        self.id = _make_id(schema.title)
 
     # --- Serialisation ---
     def to_persisted_dict(self) -> dict[str, Any]:
@@ -125,6 +143,7 @@ class Server:
         mods = list(self._schema.mods)
         if self.settings.server_mods and not headless:
             mods = list(self.settings.server_mods) + mods
+        mods = self._launchable_mods(mods)
         if mods:
             args.append(f"-mod={';'.join(mods)}")
 
@@ -138,11 +157,42 @@ class Server:
 
         return args
 
+    def _launchable_mods(self, mods: list[str]) -> list[str]:
+        """Drop mods that aren't on disk or can't be written into `-mod=` (it splits on `;`).
+
+        Arma refuses to start, or starts without them, when a `-mod` entry is missing.
+        The dropped names are kept in `skipped_mods` for the start response.
+        """
+        from pathlib import Path
+
+        from app.core.paths import game_dir
+
+        root = game_dir(self.settings)
+        kept: list[str] = []
+        for mod in mods:
+            path = Path(mod) if Path(mod).is_absolute() else root / mod.replace("\\", "/")
+            if ";" in mod or not path.is_dir():
+                if mod not in self.skipped_mods:
+                    self.skipped_mods.append(mod)
+                continue
+            kept.append(mod)
+        if self.skipped_mods:
+            log.warning("mods left out of the launch", id=self.id, mods=self.skipped_mods)
+        return kept
+
     async def start(self) -> None:
         if self._process is not None:
             return
 
-        self._write_configs()
+        self._stopping = False
+        self.last_error = None
+        self.skipped_mods = []
+        try:
+            self._write_configs()
+        except OSError as exc:
+            self.last_error = f"Could not write the server config: {exc.strerror or exc}"
+            log.error("server start failed", id=self.id, error=str(exc))
+            return
 
         from app.core.paths import game_dir
 
@@ -166,8 +216,10 @@ class Server:
                 "before starting the event loop.",
                 id=self.id,
             )
+            self.last_error = "This event loop can't start processes (Windows needs the Proactor loop)"
             return
         except OSError as exc:
+            self.last_error = f"Could not run {cmd[0]}: {exc.strerror or exc}"
             log.error("server start failed", id=self.id, error=str(exc))
             return
 
@@ -182,6 +234,7 @@ class Server:
         if self._process is None:
             return
 
+        self._stopping = True
         self._process.terminate()
         try:
             await asyncio.wait_for(self._process.wait(), timeout=5.0)
@@ -195,8 +248,8 @@ class Server:
         await self._stop_hc()
 
     async def _monitor(self) -> None:
-        if self._process:
-            await self._process.wait()
+        returncode = await self._process.wait() if self._process else None
+        expected = self._stopping
         self._process = None
         self.pid = None
         self.state = None
@@ -204,6 +257,16 @@ class Server:
             self._query_task.cancel()
             self._query_task = None
         await self._stop_hc()
+        if expected:
+            log.info("server stopped", id=self.id, returncode=returncode)
+        else:
+            # Crashed, failed to bind its ports, or was killed from outside
+            log.warning("server exited unexpectedly", id=self.id, returncode=returncode)
+            await self.bus.publish(
+                "server_exited",
+                {"title": self.title, "returncode": returncode},
+                server_id=self.id,
+            )
         await self.bus.publish("servers", None)
 
     async def _poll_status(self) -> None:
@@ -252,6 +315,21 @@ class Server:
             except ProcessLookupError:
                 pass
         self._hc_processes = []
+
+    def remove_config_files(self, server_id: str | None = None) -> None:
+        """Delete the `<id>.cfg` / `<id>.Arma3Profile` written for this server.
+
+        They hold the hostname and passwords, so a renamed or deleted server
+        must not leave them behind. *server_id* names a previous id.
+        """
+        from app.core.paths import game_dir
+
+        name = server_id or self.id
+        for path in (game_dir(self.settings) / f"{name}.cfg", game_dir(self.settings) / f"{name}.Arma3Profile"):
+            try:
+                path.unlink(missing_ok=True)
+            except OSError as exc:
+                log.warning("could not remove server config", path=str(path), error=str(exc))
 
     def _write_configs(self) -> None:
         from app.core.paths import game_dir

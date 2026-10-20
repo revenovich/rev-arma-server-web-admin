@@ -89,14 +89,14 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
                     to={`/servers/${server.id}/general`}
                     onClick={onNavigate}
                     className={cn(
-                      "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-all duration-200",
+                      "flex min-w-0 items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-all duration-200",
                       isActive
                         ? "bg-indigo-500/20 font-medium text-indigo-100 ring-1 ring-inset ring-indigo-400/30"
                         : "text-gray-400 hover:bg-white/5 hover:text-white",
                     )}
                   >
                     <StatusDot online={online} className="h-2 w-2 shrink-0" />
-                    <span className="truncate">{server.title}</span>
+                    <span className="truncate" title={server.title}>{server.title}</span>
                   </Link>
                 </li>
               );
@@ -112,7 +112,7 @@ export function Sidebar() {
   const { logout } = useAuth();
 
   return (
-    <aside className="glass hidden md:flex h-screen w-sidebar flex-col border-r border-white/10">
+    <aside className="glass hidden md:flex h-screen w-sidebar shrink-0 flex-col border-r border-white/10">
       <div className="flex h-topbar items-center gap-2.5 border-b border-white/10 px-4">
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/20">
           <Server className="h-4 w-4 text-indigo-400" />

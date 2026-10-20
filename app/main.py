@@ -13,7 +13,7 @@ import structlog
 # ProactorEventLoop is required for asyncio.create_subprocess_exec().
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -108,6 +108,9 @@ def _mount_frontend(app: FastAPI) -> None:
 
         @app.get("/{full_path:path}", include_in_schema=False)
         async def spa_fallback(full_path: str) -> Any:
+            # A wrong API path must fail like one, not look like a 200 page
+            if full_path == "api" or full_path.startswith("api/"):
+                raise HTTPException(status_code=404, detail="Not Found")
             index = _FRONTEND_DIST / "index.html"
             from fastapi.responses import HTMLResponse
 

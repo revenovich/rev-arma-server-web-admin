@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -55,8 +56,15 @@ async def upload_presets(
         with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as tmp:
             tmp.write(content)
             tmp_path = Path(tmp.name)
-        preset = preset_parser.parse_modlist_html(tmp_path)
-        tmp_path.unlink(missing_ok=True)
+        try:
+            preset = preset_parser.parse_modlist_html(tmp_path)
+        except (ET.ParseError, UnicodeDecodeError, ValueError) as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"'{upload.filename}' is not an Arma Launcher preset (.html): {exc}",
+            ) from exc
+        finally:
+            tmp_path.unlink(missing_ok=True)
         _presets[preset.source_file] = preset.model_dump()
         results.append(_presets[preset.source_file])
     return results

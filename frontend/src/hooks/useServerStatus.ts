@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { subscribe } from "@/lib/ws";
 import type { Server, ServerState } from "@/types/api";
 
@@ -28,6 +29,19 @@ export function useServerStatus() {
             // Prefix match: refreshes the list and each ["servers", id] query
             void queryClient.invalidateQueries({ queryKey: SERVERS_KEY });
           }
+          break;
+        }
+        case "server_exited": {
+          // The process ended without a Stop: crashed, port in use, killed
+          const { title, returncode } = (event.payload ?? {}) as {
+            title?: string;
+            returncode?: number | null;
+          };
+          const code = returncode == null ? "" : ` (exit code ${returncode})`;
+          toast.error(`${title ?? event.serverId ?? "A server"} stopped unexpectedly${code}`, {
+            description: "Check its log on the Logs page.",
+          });
+          void queryClient.invalidateQueries({ queryKey: SERVERS_KEY });
           break;
         }
         case "server": {

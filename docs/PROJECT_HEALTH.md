@@ -8,6 +8,8 @@ _Re-checked against `master` @ `2424b84` (2026-10-20, after PRs #5–#7). Since 
 
 _End-to-end run of `master` @ `502ec9a` (2026-10-20): the built app was served by `python -m app.main` with auth on, a fake `arma3server` answered A2S, and the real UI was driven in Chromium. That run confirmed P2, P3, P5, P7, P8 (rename), P10, P14, P15, P17, P18 and P20 in the running app, found P24–P28, and showed the stale-form half of P8 no longer happens. P3, P24, P25 and P26 are now fixed._
 
+_Second, deeper end-to-end round (2026-10-20, `master` @ `c36554a`): bad input against the API, auth and WebSocket edge cases, lifecycle edge cases, odd file names and the UI in Chromium. It found P29–P41, all now fixed together with P7, P9, P23, P27 and the §2 "failed start" and "empty id" items. The §2 double-start race did not reproduce. It also turned up P42 (open)._
+
 ## TL;DR
 
 The rewrite has a sound architecture and good unit-test coverage, but **several headline features don't work end-to-end**, and there are **path-traversal holes that let a request delete or write files outside their directories**:
@@ -22,7 +24,7 @@ The rewrite has a sound architecture and good unit-test coverage, but **several 
    - Most of the fields they edit never reach `server.cfg`, `basic.cfg` or the profile (P2).
    - Mission rotation writes `.pbo` into `template` (P14).
 4. **Data loss:**
-   - Duplicate titles and clones overwrite servers (P7).
+   - ~~Duplicate titles and clones overwrite servers (P7).~~ ✅ Fixed.
    - Switching servers saves A's form onto B (P8).
    - One invalid record in `servers.json` drops every record after it on the next save (P19).
 5. ~~**Live updates:** WebSocket "servers" events wipe the UI's server list instead of refreshing it (P3).~~ ✅ Fixed.
@@ -67,16 +69,20 @@ Every backend publisher sends `{"type": "servers", "payload": null}` as a "chang
 
 Original finding: `server.py:188` catches only builtin `TimeoutError`. Before 3.11, `asyncio.wait_for` raises `asyncio.TimeoutError`, so a server that ignores SIGTERM for 5 s causes a 500 and is never killed. Headless clients are also left running. This is the same class of bug that was already fixed in `ws.py`.
 
-### P7 — Duplicate titles silently overwrite servers (✔ reproduced)
-`id = slugify(title)` and `Manager.add` doesn't check for collisions (`manager.py:30`). Creating a second "My Server", or pressing **Clone** twice ("Copy of X" both times), replaces the first entry in memory and in `servers.json`. Renaming one server to another's title in `Manager.update` has the same effect.
+### ~~P7 — Duplicate titles silently overwrite servers~~ ✅ Fixed
+**Fixed:** `Manager.add` and `Manager.update` reject a title whose id another server already has with 409 (create, rename and clone alike), and Clone numbers its title ("Copy of X (2)"). Tests: `test_duplicate_title_is_rejected_on_create`, `test_rename_onto_another_server_is_rejected` in `tests/backend/integration/test_api_round2.py`, and `clone.test.ts`.
+
+Original finding: `id = slugify(title)` and `Manager.add` doesn't check for collisions (`manager.py:30`). Creating a second "My Server", or pressing **Clone** twice ("Copy of X" both times), replaces the first entry in memory and in `servers.json`. Renaming one server to another's title in `Manager.update` has the same effect.
 
 ### P8 — Renaming a server breaks the detail page; switching servers keeps stale form state
 _E2E run: the rename half reproduces ("Failed to load server"). The stale-form half does not: `AnimatedOutlet` keys its `<Outlet/>` by location, so the tab remounts when `:id` changes._
 - A rename on GeneralTab changes the id, but the page stays on `/servers/<old-id>/…` and shows "Failed to load server". It needs a `navigate()` to the new id.
 - The tab components stay mounted when the `:id` param changes (React Router reuses the element). `GeneralTab` only resets the form when `title === ""`, and the other tabs only reset when `!initialized`. Going from server A to server B in the sidebar shows **A's values on B's page**, and Save writes them to B. Fix with `key={id}` on the `<Outlet/>`, or reset on id change.
 
-### P9 — Updates bypass validation (✔ reproduced)
-`Server.update()` uses `model_copy(update=data)` (`server.py:93`), which skips pydantic validation. `PUT {"port": "not-a-number", "max_players": "lots"}` returns 200, is persisted, and would be written as `maxPlayers = lots;` / `-port=not-a-number`. Use `ServerSchema.model_validate({**old.model_dump(), **data})`.
+### ~~P9 — Updates bypass validation~~ ✅ Fixed
+**Fixed with P34:** `Manager.update` validates the merged record (`ServerSchema` plus range checks) before applying it, and a bad body returns 422 without being persisted. Test: `test_invalid_update_is_rejected_and_not_persisted`.
+
+Original finding: `Server.update()` uses `model_copy(update=data)` (`server.py:93`), which skips pydantic validation. `PUT {"port": "not-a-number", "max_players": "lots"}` returns 200, is persisted, and would be written as `maxPlayers = lots;` / `-port=not-a-number`. Use `ServerSchema.model_validate({**old.model_dump(), **data})`.
 
 ### P10 — `server.cfg` writer produces invalid or wrong output (✔ reproduced)
 - No escaping. A `"` in hostname, password, MOTD or a mission name ends the string (`hostname = "My "Best" Server";`). Arma escapes `"` as `""`. MOTD lines can inject arbitrary cfg entries.
@@ -145,8 +151,10 @@ Original finding: `upload_missions` writes to the system temp dir, then `Path.re
 
 Original finding: `main.py:141`. In production, any `.py` change or `git pull` restarts the worker, and the lifespan shutdown **stops every running Arma server**. On Windows, uvicorn's reload mode uses a `SelectorEventLoop` regardless of the policy set at `main.py:15`, so server start fails with `NotImplementedError` in that mode.
 
-### P23 — `PUT /api/servers/{id}/config` renames without re-keying (500)
-`update_server_config` (`servers.py:118`) calls `server.update(body)` directly, bypassing `Manager.update`. If `title` changes, the manager's dict key stays old: `GET /<new-id>` returns 404, and a later `PUT /<old-id>` crashes with a `KeyError` at `manager.py:48`.
+### ~~P23 — `PUT /api/servers/{id}/config` renames without re-keying (500)~~ ✅ Fixed
+**Fixed:** the route now goes through `Manager.update`, so it re-keys, validates and checks for clashes like `PUT /api/servers/{id}`. Test: `test_config_route_rename_rekeys_the_server`.
+
+Original finding: `update_server_config` (`servers.py:118`) calls `server.update(body)` directly, bypassing `Manager.update`. If `title` changes, the manager's dict key stays old: `GET /<new-id>` returns 404, and a later `PUT /<old-id>` crashes with a `KeyError` at `manager.py:48`.
 
 ### ~~P24 — A wrong password opens the browser's login dialog instead of the form's error~~ ✅ Fixed
 ~~Every 401 from `require_auth` carried `WWW-Authenticate: Basic` (`app/api/__init__.py`). Chromium answers that on a `fetch` with its native credentials dialog (headless: the request hangs), so the login form sat on "Signing in…" and "Invalid username or password" never showed. The same happened to any request after a password change.~~
@@ -159,11 +167,66 @@ Original finding: `main.py:141`. In production, any `.py` change or `git pull` r
 ### ~~P26 — The detail page never shows a started server coming online~~ ✅ Fixed
 ~~After Start the header kept the grey dot and no player count until a reload, because WS events never refreshed the `["servers", id]` query.~~ **Fixed with P3.**
 
-### P27 — Clone keeps the original's port
-"Copy of X" gets X's game port, with no warning. Starting both makes the second one fail to bind (and its A2S port clashes too). Pick the next free port pair, or at least warn.
+### ~~P27 — Clone keeps the original's port~~ ✅ Fixed
+**Fixed with P29:** Clone leaves the port out, and the backend gives the copy the first free port.
+
+Original finding: "Copy of X" gets X's game port, with no warning. Starting both makes the second one fail to bind (and its A2S port clashes too). Pick the next free port pair, or at least warn.
 
 ### P28 — Raw timestamps on the Missions and Logs screens
 Missions show ISO strings (`2026-10-20T08:30:11.512257Z`), and logs show Unix floats (`1792485519.407887`, from `LogSchema.created` being `str(st_ctime)`). Format both in the UI, and return logs' times in the same ISO form as missions.
+
+### Found by the second end-to-end round (2026-10-20)
+
+Reproduced in the running app first; the scripts and screenshots are in the project files (`e2e-test-2026-10-20/round2/`). Unless a test file is named, the backend tests are in `tests/backend/integration/test_api_round2.py`.
+
+#### ~~P29 — Every new server defaults to port 2302, and a server that dies at start is invisible~~ ✅ Fixed
+~~The Add Server dialog and the API both defaulted to 2302, so a second server bound the same ports and exited silently. The app logged no exit, pushed nothing to the UI, and `POST /start` answered `ok` with `pid: null` when the spawn itself failed.~~
+**Fixed:**
+- A create without `port` gets the first free one (2302, 2312, …). A port within 4 of another server's (Arma uses the game port and the next four) gets 409 on create and update.
+- `POST /start` returns 500 with the reason ("Could not run …/arma3server: No such file or directory") when the process doesn't start.
+- An exit nobody asked for is logged with its code and published as `server_exited` (`{title, returncode}`); the UI shows "X stopped unexpectedly (exit code N)".
+- Tests: `test_new_servers_without_a_port_get_free_ports`, `test_*_overlapping_port_is_rejected`, `test_start_with_missing_binary_returns_error`, `test_unexpected_exit_is_published`, `useServerStatus.test.tsx`.
+
+#### ~~P30 — Number fields on the Network and Advanced tabs can't hold negative numbers~~ ✅ Fixed
+~~`parseInt(value) || 0` turned a typed `-1` into `01` (saved as 1), a cleared field into 0, and `-3` headless clients into 3.~~
+**Fixed:** the fields keep the raw text and are parsed on save (`lib/numbers.ts`). Anything that isn't a whole number, or a negative headless-client count, is refused with a toast. Tests: `number-fields.test.tsx`, `numbers.test.ts`.
+
+#### ~~P31 — Deleting a mission whose name has `#` or `?` deletes nothing but says "Mission deleted"~~ ✅ Fixed
+**Fixed:** mission and log names are URL-encoded in delete calls and download links, and deleting a missing mission returns 404. Tests: `test_deleting_a_missing_mission_is_404`, `test_mission_with_hash_in_name_can_be_deleted_when_encoded`, `useMissions.test.tsx`.
+
+#### ~~P32 — Passwords with non-ASCII characters can never log in~~ ✅ Fixed
+~~The backend decoded Basic credentials as ASCII (FastAPI's `HTTPBasic`), and the browser's `btoa()` threw first.~~
+**Fixed:** `require_auth` decodes the header as UTF-8 (Latin-1 fallback), and the SPA base64-encodes the UTF-8 bytes. Tests: `test_non_ascii_password_works_over_http_and_ws`, `api.test.ts`.
+
+#### ~~P33 — A long server name breaks the layout, and a very long one makes Start fail~~ ✅ Fixed
+**Fixed:** the sidebar now has its width (`w-sidebar` was never defined as a Tailwind utility, see P42) and truncates titles. Ids are capped at 100 characters, so `<id>.cfg` fits a file name. Test: `test_long_title_gets_an_id_that_fits_a_file_name`.
+
+#### ~~P34 — Wrong types or out-of-range values in a create body give 500 or are accepted~~ ✅ Fixed
+**Fixed:** create and update validate with `ServerSchema` and range checks (port 1–65531, `max_players` 0–1024, headless clients 0–64) and return 422 with the reason. A title without a letter or digit (`"!!!"`, `"   "`, `"🔥"`) also gets 422 instead of an empty id. Test: `test_invalid_create_bodies_get_422`.
+
+#### ~~P35 — A bad preset upload gives 500 and leaks a temp file~~ ✅ Fixed
+**Fixed:** a file that doesn't parse returns 400, and the temp file is removed in a `finally`. Test: `test_bad_preset_upload_is_400_and_leaves_no_temp_file`.
+
+#### ~~P36 — Missing mods are still launched~~ ✅ Fixed
+**Fixed:** `-mod=` only gets mods whose folder exists and whose name has no `;`. The rest are logged and returned as `skipped_mods` by `POST /start`, and the UI warns about them. Tests: `test_missing_and_unsafe_mods_are_left_out_of_the_launch`, `test_missing_and_semicolon_mods_are_skipped`.
+
+#### ~~P37 — Mission upload quirks~~ ✅ Fixed
+**Fixed:** an upload replaces an existing file whose name differs only in case. Empty files, a file named just `.pbo` and non-`.pbo` files get 400 before anything is stored, and the Missions screen says "Only .pbo files can be uploaded". Tests: `test_reupload_with_different_case_replaces_existing_file`, `test_bad_mission_uploads_are_rejected`, `MissionsScreen.test.tsx`.
+
+#### ~~P38 — The API persists runtime keys~~ ✅ Fixed
+**Fixed:** `id`, `pid` and `state` are dropped from create and update bodies and from `servers.json` on load. Test: `test_runtime_keys_are_not_persisted`.
+
+#### ~~P39 — Orphan `<id>.cfg` files~~ ✅ Fixed
+**Fixed:** renaming or deleting a server removes its old `<id>.cfg` and `<id>.Arma3Profile`, which hold its passwords. Test: `test_rename_and_delete_remove_old_config_files`.
+
+#### ~~P40 — Add Server dialog quirks~~ ✅ Fixed
+**Fixed:** the dialog starts empty after Cancel, sends one request per double-click, and leaves the port empty ("Automatic") by default. A duplicate title gets a 409 with the reason (P7). Test: `add-server-dialog.test.tsx`.
+
+#### ~~P41 — Unknown API paths look like successes~~ ✅ Fixed
+**Fixed:** the SPA fallback returns a JSON 404 for `/api` and `/api/*`. Test: `test_unknown_api_path_is_404_json_not_the_spa`.
+
+#### P42 — Layout utilities that were never defined
+`h-topbar`, `p-content` and `max-w-content` (`AppShell.tsx`, `Sidebar.tsx`, `Topbar.tsx`) have no matching theme variable, so Tailwind generates nothing for them: the content area has no padding or maximum width, and the top bar has no set height. The values exist as `--topbar-height`, `--content-padding` and `--content-max-width` in `tokens.css`. P33 defined only `--spacing-sidebar`; wiring the other three changes every page's look, so it should be checked visually.
 
 ## 2. Potential issues (latent bugs, security, platform)
 
@@ -187,13 +250,13 @@ Also on the security side:
 
 ### Latent bugs and robustness
 
-- **Double-start race.** `start()` checks `self._process is None`, then `await`s config writing and spawning. Two quick clicks can spawn two processes, and the first one is orphaned (`server.py:142-155`).
+- ~~**Double-start race.**~~ Not reproduced (2026-10-20): three simultaneous `POST /start` calls gave one process and two `already_running`, because config writing is synchronous, so `_process` is set before the first real `await`. It would come back if config writing became async.
 - **Headless clients** are only `terminate()`d, never awaited or killed, and are never restarted if they crash.
-- **A failed start reports success.** `POST /start` returns `{"status": "ok", "pid": null}` when the spawn failed (`servers.py:84`).
+- ~~**A failed start reports success.**~~ ✅ Fixed with P29: `POST /start` returns 500 with the reason.
 - **WS connect blocks the event loop.** Every new connection runs the synchronous `list_mods()` (recursive globs plus a size walk per mod over the game dir) inside `_send_initial_snapshot` (`ws.py:122`). Use `asyncio.to_thread`.
 - **Log timestamps are float strings.** `created`/`modified` are produced by `stat().st_ctime.__format__("")`, sorted as strings and shown raw in the UI (`domain/logs.py:33-43`). Return ISO datetimes like missions do.
 - **The Wine log path uses the Windows XP layout** (`Local Settings/Application Data`) instead of `AppData/Local` (`paths.py:47-56`).
-- **Bad titles produce empty ids.** A title like `"!!!"` slugifies to `""`, an empty server id.
+- ~~**Bad titles produce empty ids.**~~ ✅ Fixed with P34: such titles get 422.
 - **Workshop mission download is unlikely to work.** It relies on `file_url` from `GetPublishedFileDetails`, which is normally empty for Arma workshop items. It needs SteamCMD `workshop_download_item`.
 - **`scripts/migrate_servers_json.py` barely migrates anything.** `migrate_entry` only fills in title/port. Several untitled entries all become "Unnamed Server" (one slug), duplicate slugs aren't checked, and there is no backup. It also doesn't convert Node-style `{name}` missions (P14).
 - **Windows-only test.** `test_mod_linker.py` junction tests skip on Linux, so the most dangerous code path (junction vs `rmtree`) is only exercised on a developer's Windows machine. Consider a `windows-latest` CI job.
@@ -268,6 +331,6 @@ Other test-suite observations:
 1. **Close the destructive holes now**: ~~S0 (`update-mods` and the other preset path joins), S1 (upload filename), S7 (Caddy listing names)~~ ✅ fixed. S2 (fail-open auth / CWD-relative config) is still open. Until it's fixed, don't expose the panel beyond localhost or a VPN.
 2. ~~**Make CI green**: ruff `N815` ignore plus autofix, fix or delete `list_mod_updates`, and the two ESLint errors.~~ **Done** (§3); `list_mod_updates` was fixed, not deleted.
 3. **Make the core loop work**: P5 (drain stdout), ~~P4 (query port), P13 (Stop button), P6 (TimeoutError), P1 (partial PUT)~~ ✅, ~~P3 (WS payload)~~ ✅, ~~P22 (no reload in prod)~~ ✅. Add one integration test per fix that exercises the *real* contract.
-4. **Stop data loss and corruption**: P19 (`servers.json` load/save), P7 and P23 (id collisions and re-keying), P8 (stale form across servers, rename navigation), P9 (validation), P10 (cfg escaping), P14 (`template`).
+4. **Stop data loss and corruption**: P19 (`servers.json` load/save), ~~P7 and P23 (id collisions and re-keying)~~ ✅, P8 (stale form across servers, rename navigation), ~~P9 (validation)~~ ✅, P10 (cfg escaping), P14 (`template`).
 5. **Wire config coverage (P2, P21)** with a config-preview endpoint and golden tests, then fix or hide the dead UI (P15, P16, P18, P20).
 6. **Then features and upgrades (§5)**: Python floor, dependency cleanup, console/log streaming, player list, RCon.

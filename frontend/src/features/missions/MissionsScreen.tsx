@@ -1,6 +1,7 @@
 import { Map, Upload, RefreshCw } from "lucide-react";
 import { useCallback } from "react";
-import { useDropzone } from "react-dropzone";
+import { useDropzone, type FileRejection } from "react-dropzone";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,8 +14,14 @@ export function MissionsScreen() {
   const refreshMissions = useRefreshMissions();
   const uploadMissions = useUploadMissions();
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    uploadMissions.mutate(acceptedFiles);
+  const onDrop = useCallback((acceptedFiles: File[], rejections: FileRejection[]) => {
+    if (rejections.length > 0) {
+      const names = rejections.map((r) => r.file.name).join(", ");
+      toast.error(`Only .pbo files can be uploaded (skipped ${names})`);
+    }
+    if (acceptedFiles.length > 0) {
+      uploadMissions.mutate(acceptedFiles);
+    }
   }, [uploadMissions]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -94,7 +101,7 @@ export function MissionsScreen() {
               </div>
               <div className="flex shrink-0 gap-2">
                 <a
-                  href={`/api/missions/${mission.name}`}
+                  href={`/api/missions/${encodeURIComponent(mission.name)}`}
                   download
                   aria-label={`Download ${mission.name}`}
                   className="btn-secondary inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-medium transition-all"

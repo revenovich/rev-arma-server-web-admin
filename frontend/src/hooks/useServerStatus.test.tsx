@@ -94,6 +94,20 @@ describe("useServerStatus", () => {
 
   // ── Subscription lifecycle ──────────────────────────────────────────────
 
+  it("toasts and refetches when a server exits without being stopped", async () => {
+    const { toast } = await import("sonner");
+    const errorSpy = vi.spyOn(toast, "error");
+    const sendEvent = captureSubscribeCallback();
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+    renderHook(() => useServerStatus(), { wrapper: createWrapper() });
+
+    sendEvent({ type: "server_exited", serverId: "alpha", payload: { title: "Alpha", returncode: 3 } });
+
+    expect(errorSpy).toHaveBeenCalledWith("Alpha stopped unexpectedly (exit code 3)", expect.anything());
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["servers"] });
+    errorSpy.mockRestore();
+  });
+
   it("subscribes to WebSocket events on mount", () => {
     renderHook(() => useServerStatus(), { wrapper: createWrapper() });
 

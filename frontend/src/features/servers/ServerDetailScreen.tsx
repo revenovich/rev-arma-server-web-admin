@@ -1,6 +1,7 @@
 import { useParams, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { ArrowLeft, AlertTriangle, Play, Square, Copy, Trash2, Loader2, Users } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,8 @@ import {
 } from "@/hooks/useServers";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { clonePayload } from "@/lib/clone";
+import type { Server } from "@/types/api";
 
 const TAB_ITEMS = [
   { value: "general", label: "General" },
@@ -48,6 +51,7 @@ export function ServerDetailScreen() {
   const { mutate: stopServer, isPending: isStopping } = useStopServer(id ?? "");
   const { mutate: createServer, isPending: isCloning } = useCreateServer();
   const { mutate: deleteServer, isPending: isDeleting } = useDeleteServer();
+  const queryClient = useQueryClient();
 
   const pathSegments = location.pathname.split("/");
   const currentTab = (pathSegments[3] as ServerTab) ?? "general";
@@ -65,9 +69,7 @@ export function ServerDetailScreen() {
 
   function handleClone() {
     if (!server) return;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { id: _id, pid: _pid, state: _state, ...rest } = server;
-    createServer({ ...rest, title: `Copy of ${server.title}` });
+    createServer(clonePayload(server, queryClient.getQueryData<Server[]>(["servers"])));
   }
 
   function handleDelete() {

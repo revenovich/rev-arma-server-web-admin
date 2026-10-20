@@ -1,16 +1,15 @@
 from __future__ import annotations
 
+import base64
+import binascii
 import hmac
 import time
 from collections import defaultdict
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from app.core.config import get_settings
-
-_security = HTTPBasic(auto_error=False)
 
 # Simple in-process failed-attempt tracker to slow brute force.
 # Resets on restart — sufficient for the admin-tool threat model.
@@ -32,8 +31,35 @@ def _challenge_headers(request: Request) -> dict[str, str] | None:
     return {"WWW-Authenticate": "Basic"}
 
 
+def decode_basic(value: str) -> tuple[str, str] | None:
+    """`user:pass` from a Basic token, read as UTF-8 (what browsers and curl send).
+
+    FastAPI's HTTPBasic decodes ASCII only, so any non-ASCII password failed.
+    Falls back to Latin-1 for old clients; None when the token is malformed.
+    """
+    try:
+        raw = base64.b64decode(value.strip(), validate=True)
+    except (binascii.Error, ValueError):
+        return None
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        text = raw.decode("latin-1")
+    user, sep, password = text.partition(":")
+    if not sep:
+        return None
+    return user, password
+
+
+def _basic_credentials(request: Request) -> tuple[str, str] | None:
+    scheme, _, value = request.headers.get("authorization", "").partition(" ")
+    if scheme.lower() != "basic":
+        return None
+    return decode_basic(value)
+
+
 def require_auth(
-    credentials: Annotated[HTTPBasicCredentials | None, Depends(_security)],
+    credentials: Annotated[tuple[str, str] | None, Depends(_basic_credentials)],
     request: Request,
 ) -> None:
     """Enforce HTTP Basic Auth if configured; allow through if auth fields are empty."""
@@ -63,8 +89,9 @@ def require_auth(
             headers=_challenge_headers(request),
         )
 
-    user_ok = hmac.compare_digest(credentials.username.encode(), cfg_user.encode())
-    pass_ok = hmac.compare_digest(credentials.password.encode(), cfg_pass.encode())
+    username, password = credentials
+    user_ok = hmac.compare_digest(username.encode(), cfg_user.encode())
+    pass_ok = hmac.compare_digest(password.encode(), cfg_pass.encode())
 
     if not (user_ok and pass_ok):
         _fail_counts[client_ip] += 1

@@ -12,6 +12,27 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The backend's own reason for a failed request (FastAPI's `detail`), or
+ * *fallback* when there is none, e.g. for a toast.
+ */
+export function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) {
+    const detail = (error.body as { detail?: unknown } | null)?.detail;
+    if (typeof detail === "string" && detail) return detail;
+  }
+  return fallback;
+}
+
+/** Base64 of the UTF-8 bytes; plain `btoa` throws on characters outside Latin-1. */
+export function base64Utf8(text: string): string {
+  let binary = "";
+  for (const byte of new TextEncoder().encode(text)) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
+}
+
 let authHeader: string | null = null;
 
 /** @internal Exposed for WebSocket auth — do not use outside this module. */
@@ -106,7 +127,7 @@ export const api = {
   },
 
   setAuth(user: string, pass: string): void {
-    authHeader = `Basic ${btoa(`${user}:${pass}`)}`;
+    authHeader = `Basic ${base64Utf8(`${user}:${pass}`)}`;
   },
 
   clearAuth(): void {

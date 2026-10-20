@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { api } from "@/lib/api";
+import { api, ApiError, errorMessage } from "@/lib/api";
 
 describe("api fetch wrapper", () => {
   beforeEach(() => {
@@ -72,6 +72,30 @@ describe("api fetch wrapper", () => {
 
     const headers = capturedInit.headers as Record<string, string>;
     expect(headers["Authorization"]).toMatch(/^Basic /);
+  });
+
+  it("encodes a non-ASCII password as UTF-8 instead of throwing", async () => {
+    let capturedInit: RequestInit = {};
+    vi.stubGlobal("fetch", (_url: string, init: RequestInit) => {
+      capturedInit = init;
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) } as Response);
+    });
+
+    api.setAuth("admin", "пароль");
+    await api.get("/servers/");
+
+    const headers = capturedInit.headers as Record<string, string>;
+    // base64 of the UTF-8 bytes, as `curl -u admin:пароль` sends it
+    expect(headers["Authorization"]).toBe("Basic YWRtaW460L/QsNGA0L7Qu9GM");
+    api.clearAuth();
+  });
+
+  it("errorMessage prefers the backend's detail", () => {
+    expect(errorMessage(new ApiError(409, "Conflict", { detail: "Port 2302 overlaps 'A'" }), "x")).toBe(
+      "Port 2302 overlaps 'A'",
+    );
+    expect(errorMessage(new ApiError(422, "", { detail: [{ msg: "bad" }] }), "fallback")).toBe("fallback");
+    expect(errorMessage(new Error("boom"), "fallback")).toBe("fallback");
   });
 
   // app/api/__init__.py omits `WWW-Authenticate: Basic` for requests carrying this
